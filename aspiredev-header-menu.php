@@ -2,8 +2,8 @@
 /*
 Plugin Name: AspireDev Header Menu
 Plugin URI: https://aspiredev.com
-Description: A WordPress plugin to create a header with a dynamic, multi-level navigation menu using a shortcode. Developed by AspireDev.
-Version: 1.7.5
+Description: A WordPress plugin to create a header with a dynamic, multi-level navigation menu using a shortcode, with admin panel customization. Developed by AspireDev.
+Version: 1.8.0
 Author: AspireDev
 Author URI: https://aspiredev.com
 License: GPL2
@@ -20,18 +20,204 @@ function aspiredev_header_menu_enqueue_scripts() {
 }
 add_action('wp_enqueue_scripts', 'aspiredev_header_menu_enqueue_scripts');
 
+// Admin menu
+function aspiredev_header_menu_admin_menu() {
+    add_menu_page(
+        'AspireDev Header Menu',
+        'Header Menu',
+        'manage_options',
+        'aspiredev-header-menu',
+        'aspiredev_header_menu_settings_page',
+        'dashicons-menu',
+        20
+    );
+}
+add_action('admin_menu', 'aspiredev_header_menu_admin_menu');
+
+// Register settings
+function aspiredev_header_menu_register_settings() {
+    register_setting('aspiredev_header_menu_options', 'aspiredev_header_menu_settings');
+
+    add_settings_section(
+        'aspiredev_header_menu_main_section',
+        'Header Menu Settings',
+        null,
+        'aspiredev-header-menu'
+    );
+
+    add_settings_field(
+        'aspiredev_header_menu_color_scheme',
+        'Color Scheme',
+        'aspiredev_header_menu_color_scheme_callback',
+        'aspiredev-header-menu',
+        'aspiredev_header_menu_main_section'
+    );
+
+    add_settings_field(
+        'aspiredev_header_menu_custom_colors',
+        'Custom Colors',
+        'aspiredev_header_menu_custom_colors_callback',
+        'aspiredev-header-menu',
+        'aspiredev_header_menu_main_section'
+    );
+
+    add_settings_field(
+        'aspiredev_header_menu_padding',
+        'Header Padding (px)',
+        'aspiredev_header_menu_padding_callback',
+        'aspiredev-header-menu',
+        'aspiredev_header_menu_main_section'
+    );
+
+    add_settings_field(
+        'aspiredev_header_menu_font_size',
+        'Font Size (px)',
+        'aspiredev_header_menu_font_size_callback',
+        'aspiredev-header-menu',
+        'aspiredev_header_menu_main_section'
+    );
+}
+add_action('admin_init', 'aspiredev_header_menu_register_settings');
+
+// Settings page callback
+function aspiredev_header_menu_settings_page() {
+    ?>
+    <div class="wrap">
+        <h1>AspireDev Header Menu Settings</h1>
+        <form method="post" action="options.php">
+            <?php
+            settings_fields('aspiredev_header_menu_options');
+            do_settings_sections('aspiredev-header-menu');
+            submit_button();
+            ?>
+        </form>
+    </div>
+    <?php
+}
+
+// Color scheme callback
+function aspiredev_header_menu_color_scheme_callback() {
+    $options = get_option('aspiredev_header_menu_settings');
+    $color_scheme = $options['color_scheme'] ?? 'default';
+    $schemes = [
+        'default' => 'Default (Dark Blue Gradient)',
+        'light' => 'Light Theme',
+        'dark' => 'Dark Theme',
+        'custom' => 'Custom'
+    ];
+    ?>
+    <select name="aspiredev_header_menu_settings[color_scheme]" id="aspiredev_header_menu_color_scheme">
+        <?php foreach ($schemes as $key => $label) : ?>
+            <option value="<?php echo esc_attr($key); ?>" <?php selected($color_scheme, $key); ?>>
+                <?php echo esc_html($label); ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+    <p class="description">Choose a pre-defined color scheme or select 'Custom' to use custom colors below.</p>
+    <?php
+}
+
+// Custom colors callback
+function aspiredev_header_menu_custom_colors_callback() {
+    $options = get_option('aspiredev_header_menu_settings');
+    $header_bg = $options['header_bg'] ?? '#34495e';
+    $header_gradient = $options['header_gradient'] ?? '#2c3e50';
+    $menu_text = $options['menu_text'] ?? '#ecf0f1';
+    $menu_hover = $options['menu_hover'] ?? '#2980b9';
+    $submenu_bg = $options['submenu_bg'] ?? '#2c3e50';
+    $submenu_hover = $options['submenu_hover'] ?? '#3498db';
+    ?>
+    <div>
+        <label>Header Background: <input type="color" name="aspiredev_header_menu_settings[header_bg]" value="<?php echo esc_attr($header_bg); ?>"></label><br>
+        <label>Header Gradient: <input type="color" name="aspiredev_header_menu_settings[header_gradient]" value="<?php echo esc_attr($header_gradient); ?>"></label><br>
+        <label>Menu Text: <input type="color" name="aspiredev_header_menu_settings[menu_text]" value="<?php echo esc_attr($menu_text); ?>"></label><br>
+        <label>Menu Hover: <input type="color" name="aspiredev_header_menu_settings[menu_hover]" value="<?php echo esc_attr($menu_hover); ?>"></label><br>
+        <label>Submenu Background: <input type="color" name="aspiredev_header_menu_settings[submenu_bg]" value="<?php echo esc_attr($submenu_bg); ?>"></label><br>
+        <label>Submenu Hover: <input type="color" name="aspiredev_header_menu_settings[submenu_hover]" value="<?php echo esc_attr($submenu_hover); ?>"></label>
+    </div>
+    <p class="description">Customize colors for the header and menu items.</p>
+    <?php
+}
+
+// Padding callback
+function aspiredev_header_menu_padding_callback() {
+    $options = get_option('aspiredev_header_menu_settings');
+    $padding = $options['padding'] ?? '10';
+    ?>
+    <input type="number" name="aspiredev_header_menu_settings[padding]" value="<?php echo esc_attr($padding); ?>" min="0" max="50">
+    <p class="description">Set the header padding in pixels (0-50).</p>
+    <?php
+}
+
+// Font size callback
+function aspiredev_header_menu_font_size_callback() {
+    $options = get_option('aspiredev_header_menu_settings');
+    $font_size = $options['font_size'] ?? '16';
+    ?>
+    <input type="number" name="aspiredev_header_menu_settings[font_size]" value="<?php echo esc_attr($font_size); ?>" min="12" max="24">
+    <p class="description">Set the font size in pixels (12-24).</p>
+    <?php
+}
+
 // Create the header shortcode
 function aspiredev_header_shortcode($atts) {
-    // Shortcode attributes
+    $options = get_option('aspiredev_header_menu_settings');
+    $color_scheme = $options['color_scheme'] ?? 'default';
+    $header_bg = $options['header_bg'] ?? '#34495e';
+    $header_gradient = $options['header_gradient'] ?? '#2c3e50';
+    $menu_text = $options['menu_text'] ?? '#ecf0f1';
+    $menu_hover = $options['menu_hover'] ?? '#2980b9';
+    $submenu_bg = $options['submenu_bg'] ?? '#2c3e50';
+    $submenu_hover = $options['submenu_hover'] ?? '#3498db';
+    $padding = $options['padding'] ?? '10';
+    $font_size = $options['font_size'] ?? '16';
+
+    // Default color schemes
+    $color_schemes = [
+        'default' => [
+            'header_bg' => '#34495e',
+            'header_gradient' => '#2c3e50',
+            'menu_text' => '#ecf0f1',
+            'menu_hover' => '#2980b9',
+            'submenu_bg' => '#2c3e50',
+            'submenu_hover' => '#3498db'
+        ],
+        'light' => [
+            'header_bg' => '#f0f4f8',
+            'header_gradient' => '#e0e7f0',
+            'menu_text' => '#2c3e50',
+            'menu_hover' => '#3498db',
+            'submenu_bg' => '#ffffff',
+            'submenu_hover' => '#2980b9'
+        ],
+        'dark' => [
+            'header_bg' => '#1a252f',
+            'header_gradient' => '#0f161b',
+            'menu_text' => '#d3d8de',
+            'menu_hover' => '#4a90e2',
+            'submenu_bg' => '#1a252f',
+            'submenu_hover' => '#4a90e2'
+        ]
+    ];
+
+    if ($color_scheme !== 'custom') {
+        $colors = $color_schemes[$color_scheme];
+        $header_bg = $colors['header_bg'];
+        $header_gradient = $colors['header_gradient'];
+        $menu_text = $colors['menu_text'];
+        $menu_hover = $colors['menu_hover'];
+        $submenu_bg = $colors['submenu_bg'];
+        $submenu_hover = $colors['submenu_hover'];
+    }
+
+    // Sanitize menu slug
     $atts = shortcode_atts(
         array(
-            'menu' => 'main-menu', // Default menu slug
+            'menu' => 'main-menu',
         ),
         $atts,
         'header'
     );
-
-    // Sanitize menu slug
     $menu_slug = sanitize_text_field($atts['menu']);
 
     // Get the menu
@@ -61,11 +247,10 @@ function aspiredev_header_shortcode($atts) {
     // Generate menu HTML with embedded CSS and data attributes
     ob_start();
     ?>
-    <header class="aspiredev-header">
+    <header class="aspiredev-header" style="padding: <?php echo esc_attr($padding); ?>px 0;">
         <style>
             .aspiredev-header {
-                background: linear-gradient(90deg, #34495e, #2c3e50);
-                padding: 10px 0;
+                background: linear-gradient(90deg, <?php echo esc_attr($header_bg); ?>, <?php echo esc_attr($header_gradient); ?>);
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
                 position: relative;
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -95,19 +280,19 @@ function aspiredev_header_shortcode($atts) {
             }
 
             .menu-item a {
-                color: #ecf0f1;
+                color: <?php echo esc_attr($menu_text); ?>;
                 text-decoration: none;
-                font-size: 16px;
+                font-size: <?php echo esc_attr($font_size); ?>px;
                 font-weight: 500;
                 padding: 10px 18px;
                 display: block;
                 transition: all 0.3s ease;
                 border-radius: 6px;
-                position: relative; /* Ensure positioning context for submenu */
+                position: relative;
             }
 
             .menu-item a:hover {
-                background: linear-gradient(135deg, #3498db, #2980b9);
+                background: linear-gradient(135deg, <?php echo esc_attr($menu_hover); ?>, #2980b9);
                 color: #ffffff;
                 transform: translateY(-2px);
                 box-shadow: 0 3px 6px rgba(52, 152, 219, 0.3);
@@ -120,6 +305,7 @@ function aspiredev_header_shortcode($atts) {
                 vertical-align: middle;
                 transition: transform 0.3s ease;
             }
+
             .submenu-item-level1 > a::after {
                 content: "▼";
                 font-size: 10px;
@@ -136,12 +322,12 @@ function aspiredev_header_shortcode($atts) {
                 list-style: none;
                 margin: 0;
                 padding: 0;
-                background: #2c3e50;
+                background: <?php echo esc_attr($submenu_bg); ?>;
                 border-radius: 8px;
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
                 position: absolute;
-                top: 100%; /* Position below the menu item */
-                left: 0; /* Align with the left edge of the menu item */
+                top: 100%;
+                left: 0;
                 display: flex;
                 flex-direction: row;
                 gap: 8px;
@@ -151,7 +337,7 @@ function aspiredev_header_shortcode($atts) {
                 opacity: 0;
                 transition: opacity 0.3s ease, visibility 0s linear 0.3s;
                 z-index: 1000;
-                position: absolute; /* Ensure absolute positioning */
+                position: absolute;
             }
 
             .submenu.level-2 {
@@ -159,7 +345,7 @@ function aspiredev_header_shortcode($atts) {
                 top: 100%;
                 left: 0;
                 width: 100%;
-                background: #34495e;
+                background: <?php echo esc_attr($submenu_bg); ?>;
                 border-radius: 6px;
                 padding: 15px;
                 box-sizing: border-box;
@@ -182,9 +368,9 @@ function aspiredev_header_shortcode($atts) {
             }
 
             .submenu.level-2 .submenu-item a {
-                color: #ecf0f1;
+                color: <?php echo esc_attr($menu_text); ?>;
                 padding: 10px 15px;
-                font-size: 15px;
+                font-size: <?php echo esc_attr($font_size - 1); ?>px; /* Slightly smaller for submenus */
                 font-weight: 400;
                 display: block;
                 border-radius: 4px;
@@ -192,7 +378,7 @@ function aspiredev_header_shortcode($atts) {
             }
 
             .submenu.level-2 .submenu-item a:hover {
-                background: #3498db;
+                background: <?php echo esc_attr($submenu_hover); ?>;
                 color: #ffffff;
                 transform: translateX(4px);
             }
