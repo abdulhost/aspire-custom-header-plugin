@@ -2,8 +2,8 @@
 /*
 Plugin Name: AspireDev Header Menu
 Plugin URI: https://aspiredev.com
-Description: A WordPress plugin to create a header with a dynamic, multi-level navigation menu using a shortcode, with admin panel customization. Developed by AspireDev.
-Version: 1.8.0
+Description: A WordPress plugin to create a header with a dynamic, multi-level navigation menu using a shortcode, with an enhanced admin panel for customization. Developed by AspireDev.
+Version: 2.1.3
 Author: AspireDev
 Author URI: https://aspiredev.com
 License: GPL2
@@ -14,11 +14,12 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Enqueue jQuery and custom scripts
+// Enqueue scripts and styles
 function aspiredev_header_menu_enqueue_scripts() {
     wp_enqueue_script('jquery');
 }
 add_action('wp_enqueue_scripts', 'aspiredev_header_menu_enqueue_scripts');
+add_action('admin_enqueue_scripts', 'aspiredev_header_menu_enqueue_scripts');
 
 // Admin menu
 function aspiredev_header_menu_admin_menu() {
@@ -41,7 +42,7 @@ function aspiredev_header_menu_register_settings() {
     add_settings_section(
         'aspiredev_header_menu_main_section',
         'Header Menu Settings',
-        null,
+        'aspiredev_header_menu_section_callback',
         'aspiredev-header-menu'
     );
 
@@ -55,7 +56,7 @@ function aspiredev_header_menu_register_settings() {
 
     add_settings_field(
         'aspiredev_header_menu_custom_colors',
-        'Custom Colors',
+        'Custom Colors & Theme Integration',
         'aspiredev_header_menu_custom_colors_callback',
         'aspiredev-header-menu',
         'aspiredev_header_menu_main_section'
@@ -76,21 +77,215 @@ function aspiredev_header_menu_register_settings() {
         'aspiredev-header-menu',
         'aspiredev_header_menu_main_section'
     );
+
+    add_settings_field(
+        'aspiredev_header_menu_border_radius',
+        'Border Radius (px)',
+        'aspiredev_header_menu_border_radius_callback',
+        'aspiredev-header-menu',
+        'aspiredev_header_menu_main_section'
+    );
+
+    add_settings_field(
+        'aspiredev_header_menu_shadow_intensity',
+        'Shadow Intensity (0-10)',
+        'aspiredev_header_menu_shadow_intensity_callback',
+        'aspiredev-header-menu',
+        'aspiredev_header_menu_main_section'
+    );
+
+    add_settings_field(
+        'aspiredev_header_menu_transition_speed',
+        'Transition Speed (s)',
+        'aspiredev_header_menu_transition_speed_callback',
+        'aspiredev-header-menu',
+        'aspiredev_header_menu_main_section'
+    );
+
+    add_settings_field(
+        'aspiredev_header_menu_item_spacing',
+        'Menu Item Spacing (px)',
+        'aspiredev_header_menu_item_spacing_callback',
+        'aspiredev-header-menu',
+        'aspiredev_header_menu_main_section'
+    );
+
+    add_settings_field(
+        'aspiredev_header_menu_submenu_width',
+        'Submenu Width (px)',
+        'aspiredev_header_menu_submenu_width_callback',
+        'aspiredev-header-menu',
+        'aspiredev_header_menu_main_section'
+    );
 }
 add_action('admin_init', 'aspiredev_header_menu_register_settings');
+
+// Fetch theme colors
+function aspiredev_header_menu_get_theme_colors() {
+    $theme_colors = [];
+
+    // Elementor colors
+    if (did_action('elementor/loaded') && class_exists('\Elementor\Plugin')) {
+        // Try fetching from active kit (Elementor >= 3.0)
+        $kit = \Elementor\Plugin::$instance->kits_manager->get_active_kit();
+        if ($kit) {
+            $system_colors = $kit->get_settings('system_colors');
+            $custom_colors = $kit->get_settings('custom_colors');
+            if (is_array($system_colors)) {
+                foreach ($system_colors as $color) {
+                    if (isset($color['_id'], $color['color']) && preg_match('/^#[0-9a-fA-F]{6}$/', $color['color'])) {
+                        $theme_colors["elementor-system-{$color['_id']}"] = $color['color'];
+                    }
+                }
+            }
+            if (is_array($custom_colors)) {
+                foreach ($custom_colors as $color) {
+                    if (isset($color['_id'], $color['color']) && preg_match('/^#[0-9a-fA-F]{6}$/', $color['color'])) {
+                        $theme_colors["elementor-custom-{$color['_id']}"] = $color['color'];
+                    }
+                }
+            }
+        }
+        // Fallback to schemes_manager (older Elementor versions)
+        if (empty($theme_colors) && \Elementor\Plugin::$instance->schemes_manager) {
+            $color_scheme = \Elementor\Plugin::$instance->schemes_manager->get_scheme('color');
+            if ($color_scheme) {
+                $colors = $color_scheme->get_scheme_value();
+                foreach ($colors as $key => $color) {
+                    if (preg_match('/^#[0-9a-fA-F]{6}$/', $color)) {
+                        $theme_colors["elementor-{$key}"] = $color;
+                    }
+                }
+            }
+        }
+    }
+
+    // Astra colors
+    if (function_exists('astra_get_option')) {
+        $astra_palette = astra_get_option('global-color-palette');
+        if (isset($astra_palette['palette']) && is_array($astra_palette['palette'])) {
+            foreach ($astra_palette['palette'] as $index => $color) {
+                if (preg_match('/^#[0-9a-fA-F]{6}$/', $color)) {
+                    $theme_colors["astra-color-$index"] = $color;
+                }
+            }
+        }
+        $astra_globals = [
+            'theme-color' => 'primary',
+            'link-color' => 'link',
+            'button-bg-color' => 'button-bg',
+            'header-bg-color' => 'header-bg',
+            'footer-bg-color' => 'footer-bg',
+            'text-color' => 'text',
+        ];
+        foreach ($astra_globals as $option => $key) {
+            $color = astra_get_option($option);
+            if ($color && preg_match('/^#[0-9a-fA-F]{6}$/', $color)) {
+                $theme_colors["astra-$key"] = $color;
+            }
+        }
+    }
+
+    // Fallback colors
+    if (empty($theme_colors)) {
+        $theme_colors = [
+            'primary' => '#0073aa',
+            'secondary' => '#00a32a',
+            'accent' => '#ff5733',
+        ];
+    }
+
+    return array_unique($theme_colors);
+}
+
+// Section callback with instructions and about
+function aspiredev_header_menu_section_callback() {
+    echo '<p>Customize your header menu below. Use the shortcode <code>[header menu="your-menu-slug"]</code> in pages or posts, replacing "your-menu-slug" with the slug of your WordPress navigation menu (e.g., "main-menu"). Ensure the menu is created in Appearance > Menus.</p>';
+    echo '<div class="aspiredev-about">';
+    echo '<h3>About Me</h3>';
+    echo '<p>Developed by AspireDev - Your trusted partner in web development.</p>';
+    echo '<p><strong>Support Email:</strong> <a href="mailto:aspiredevlab@gmail.com">aspiredevlab@gmail.com</a></p>';
+    echo '</div>';
+}
 
 // Settings page callback
 function aspiredev_header_menu_settings_page() {
     ?>
     <div class="wrap">
         <h1>AspireDev Header Menu Settings</h1>
-        <form method="post" action="options.php">
+        <form method="post" action="options.php" id="aspiredev-header-menu-form">
             <?php
             settings_fields('aspiredev_header_menu_options');
             do_settings_sections('aspiredev-header-menu');
-            submit_button();
+            submit_button('Save Changes');
             ?>
+            <button type="button" id="aspiredev-reset-defaults" class="button">Reset to Defaults</button>
         </form>
+        <script>
+            jQuery(document).ready(function($) {
+                // Color preview updates
+                $('input[type="color"]').on('input', function() {
+                    var id = $(this).attr('id');
+                    var color = $(this).val();
+                    $('#preview_' + id).css('background', color);
+                });
+
+                // Theme color selection
+                $('.aspiredev-theme-color-select').on('change', function() {
+                    var color = $(this).val();
+                    var targetId = $(this).data('target');
+                    $('#' + targetId).val(color).trigger('input');
+                });
+
+                // Reset to defaults
+                $('#aspiredev-reset-defaults').on('click', function() {
+                    if (confirm('Are you sure you want to reset all settings to default?')) {
+                        $.post(ajaxurl, {
+                            action: 'aspiredev_reset_defaults',
+                            nonce: '<?php echo wp_create_nonce('aspiredev_reset_nonce'); ?>'
+                        }, function(response) {
+                            if (response.success) {
+                                location.reload();
+                            } else {
+                                alert('Error resetting defaults.');
+                            }
+                        });
+                    }
+                });
+            });
+        </script>
+        <style>
+            .aspiredev-color-section {
+                margin-bottom: 20px;
+            }
+            .aspiredev-color-section h4 {
+                margin-top: 15px;
+                font-size: 16px;
+                font-weight: 600;
+            }
+            .color-preview {
+                display: inline-block;
+                width: 20px;
+                height: 20px;
+                margin-left: 10px;
+                border: 1px solid #ccc;
+                vertical-align: middle;
+            }
+            .aspiredev-theme-color-select {
+                margin-right: 10px;
+            }
+            .aspiredev-about {
+                margin-top: 20px;
+                padding: 15px;
+                background: #f9f9f9;
+                border-left: 4px solid #0073aa;
+                border-radius: 4px;
+            }
+            .aspiredev-about h3 {
+                margin-top: 0;
+                font-size: 18px;
+            }
+        </style>
     </div>
     <?php
 }
@@ -117,7 +312,7 @@ function aspiredev_header_menu_color_scheme_callback() {
     <?php
 }
 
-// Custom colors callback
+// Custom colors callback with improved global color handling
 function aspiredev_header_menu_custom_colors_callback() {
     $options = get_option('aspiredev_header_menu_settings');
     $header_bg = $options['header_bg'] ?? '#34495e';
@@ -126,16 +321,83 @@ function aspiredev_header_menu_custom_colors_callback() {
     $menu_hover = $options['menu_hover'] ?? '#2980b9';
     $submenu_bg = $options['submenu_bg'] ?? '#2c3e50';
     $submenu_hover = $options['submenu_hover'] ?? '#3498db';
+
+    // Get theme colors using the new function
+    $theme_colors = aspiredev_header_menu_get_theme_colors();
+
     ?>
-    <div>
-        <label>Header Background: <input type="color" name="aspiredev_header_menu_settings[header_bg]" value="<?php echo esc_attr($header_bg); ?>"></label><br>
-        <label>Header Gradient: <input type="color" name="aspiredev_header_menu_settings[header_gradient]" value="<?php echo esc_attr($header_gradient); ?>"></label><br>
-        <label>Menu Text: <input type="color" name="aspiredev_header_menu_settings[menu_text]" value="<?php echo esc_attr($menu_text); ?>"></label><br>
-        <label>Menu Hover: <input type="color" name="aspiredev_header_menu_settings[menu_hover]" value="<?php echo esc_attr($menu_hover); ?>"></label><br>
-        <label>Submenu Background: <input type="color" name="aspiredev_header_menu_settings[submenu_bg]" value="<?php echo esc_attr($submenu_bg); ?>"></label><br>
-        <label>Submenu Hover: <input type="color" name="aspiredev_header_menu_settings[submenu_hover]" value="<?php echo esc_attr($submenu_hover); ?>"></label>
+    <div class="aspiredev-color-section">
+        <h4>Theme Colors</h4>
+        <label>Header Background: 
+            <select class="aspiredev-theme-color-select" name="aspiredev_header_menu_settings[theme_color_header_bg]" data-target="aspiredev_header_bg">
+                <option value="">Select Theme Color</option>
+                <?php foreach ($theme_colors as $key => $color) : ?>
+                    <option value="<?php echo esc_attr($color); ?>" <?php selected($options['theme_color_header_bg'] ?? '', $color); ?>>
+                        <?php echo esc_html($key . ' (' . $color . ')'); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label><br>
+        <label>Header Gradient: 
+            <select class="aspiredev-theme-color-select" name="aspiredev_header_menu_settings[theme_color_header_gradient]" data-target="aspiredev_header_gradient">
+                <option value="">Select Theme Color</option>
+                <?php foreach ($theme_colors as $key => $color) : ?>
+                    <option value="<?php echo esc_attr($color); ?>" <?php selected($options['theme_color_header_gradient'] ?? '', $color); ?>>
+                        <?php echo esc_html($key . ' (' . $color . ')'); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label><br>
+        <label>Menu Text: 
+            <select class="aspiredev-theme-color-select" name="aspiredev_header_menu_settings[theme_color_menu_text]" data-target="aspiredev_menu_text">
+                <option value="">Select Theme Color</option>
+                <?php foreach ($theme_colors as $key => $color) : ?>
+                    <option value="<?php echo esc_attr($color); ?>" <?php selected($options['theme_color_menu_text'] ?? '', $color); ?>>
+                        <?php echo esc_html($key . ' (' . $color . ')'); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label><br>
+        <label>Menu Hover: 
+            <select class="aspiredev-theme-color-select" name="aspiredev_header_menu_settings[theme_color_menu_hover]" data-target="aspiredev_menu_hover">
+                <option value="">Select Theme Color</option>
+                <?php foreach ($theme_colors as $key => $color) : ?>
+                    <option value="<?php echo esc_attr($color); ?>" <?php selected($options['theme_color_menu_hover'] ?? '', $color); ?>>
+                        <?php echo esc_html($key . ' (' . $color . ')'); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label><br>
+        <label>Submenu Background: 
+            <select class="aspiredev-theme-color-select" name="aspiredev_header_menu_settings[theme_color_submenu_bg]" data-target="aspiredev_submenu_bg">
+                <option value="">Select Theme Color</option>
+                <?php foreach ($theme_colors as $key => $color) : ?>
+                    <option value="<?php echo esc_attr($color); ?>" <?php selected($options['theme_color_submenu_bg'] ?? '', $color); ?>>
+                        <?php echo esc_html($key . ' (' . $color . ')'); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label><br>
+        <label>Submenu Hover: 
+            <select class="aspiredev-theme-color-select" name="aspiredev_header_menu_settings[theme_color_submenu_hover]" data-target="aspiredev_submenu_hover">
+                <option value="">Select Theme Color</option>
+                <?php foreach ($theme_colors as $key => $color) : ?>
+                    <option value="<?php echo esc_attr($color); ?>" <?php selected($options['theme_color_submenu_hover'] ?? '', $color); ?>>
+                        <?php echo esc_html($key . ' (' . $color . ')'); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label><br>
+
+        <h4>Custom Colors</h4>
+        <label>Header Background: <input type="color" name="aspiredev_header_menu_settings[header_bg]" value="<?php echo esc_attr($header_bg); ?>" id="aspiredev_header_bg"><span class="color-preview" id="preview_header_bg" style="background: <?php echo esc_attr($header_bg); ?>;"></span></label><br>
+        <label>Header Gradient: <input type="color" name="aspiredev_header_menu_settings[header_gradient]" value="<?php echo esc_attr($header_gradient); ?>" id="aspiredev_header_gradient"><span class="color-preview" id="preview_header_gradient" style="background: <?php echo esc_attr($header_gradient); ?>;"></span></label><br>
+        <label>Menu Text: <input type="color" name="aspiredev_header_menu_settings[menu_text]" value="<?php echo esc_attr($menu_text); ?>" id="aspiredev_menu_text"><span class="color-preview" id="preview_menu_text" style="background: <?php echo esc_attr($menu_text); ?>;"></span></label><br>
+        <label>Menu Hover: <input type="color" name="aspiredev_header_menu_settings[menu_hover]" value="<?php echo esc_attr($menu_hover); ?>" id="aspiredev_menu_hover"><span class="color-preview" id="preview_menu_hover" style="background: <?php echo esc_attr($menu_hover); ?>;"></span></label><br>
+        <label>Submenu Background: <input type="color" name="aspiredev_header_menu_settings[submenu_bg]" value="<?php echo esc_attr($submenu_bg); ?>" id="aspiredev_submenu_bg"><span class="color-preview" id="preview_submenu_bg" style="background: <?php echo esc_attr($submenu_bg); ?>;"></span></label><br>
+        <label>Submenu Hover: <input type="color" name="aspiredev_header_menu_settings[submenu_hover]" value="<?php echo esc_attr($submenu_hover); ?>" id="aspiredev_submenu_hover"><span class="color-preview" id="preview_submenu_hover" style="background: <?php echo esc_attr($submenu_hover); ?>;"></span></label>
     </div>
-    <p class="description">Customize colors for the header and menu items.</p>
+    <p class="description">Select theme colors from Elementor or Astra, or customize with color pickers. Previews update live.</p>
     <?php
 }
 
@@ -159,6 +421,56 @@ function aspiredev_header_menu_font_size_callback() {
     <?php
 }
 
+// Border radius callback
+function aspiredev_header_menu_border_radius_callback() {
+    $options = get_option('aspiredev_header_menu_settings');
+    $border_radius = $options['border_radius'] ?? '6';
+    ?>
+    <input type="number" name="aspiredev_header_menu_settings[border_radius]" value="<?php echo esc_attr($border_radius); ?>" min="0" max="20">
+    <p class="description">Set the border radius in pixels (0-20).</p>
+    <?php
+}
+
+// Shadow intensity callback
+function aspiredev_header_menu_shadow_intensity_callback() {
+    $options = get_option('aspiredev_header_menu_settings');
+    $shadow_intensity = $options['shadow_intensity'] ?? '3';
+    ?>
+    <input type="number" name="aspiredev_header_menu_settings[shadow_intensity]" value="<?php echo esc_attr($shadow_intensity); ?>" min="0" max="10">
+    <p class="description">Set the shadow intensity (0-10).</p>
+    <?php
+}
+
+// Transition speed callback
+function aspiredev_header_menu_transition_speed_callback() {
+    $options = get_option('aspiredev_header_menu_settings');
+    $transition_speed = $options['transition_speed'] ?? '0.3';
+    ?>
+    <input type="number" step="0.1" name="aspiredev_header_menu_settings[transition_speed]" value="<?php echo esc_attr($transition_speed); ?>" min="0.1" max="1">
+    <p class="description">Set the transition speed in seconds (0.1-1).</p>
+    <?php
+}
+
+// Menu item spacing callback
+function aspiredev_header_menu_item_spacing_callback() {
+    $options = get_option('aspiredev_header_menu_settings');
+    $item_spacing = $options['item_spacing'] ?? '20';
+    ?>
+    <input type="number" name="aspiredev_header_menu_settings[item_spacing]" value="<?php echo esc_attr($item_spacing); ?>" min="0" max="50">
+    <p class="description">Set the spacing between menu items in pixels (0-50).</p>
+    <?php
+}
+
+// Submenu width callback
+function aspiredev_header_menu_submenu_width_callback() {
+    $options = get_option('aspiredev_header_menu_settings');
+    $submenu_width = $options['submenu_width'] ?? '600';
+    ?>
+    <input type="number" name="aspiredev_header_menu_settings[submenu_width]" value="<?php echo esc_attr($submenu_width); ?>" min="300" max="1200">
+    <p class="description">Set the submenu width in pixels (300-1200).</p>
+    <?php
+}
+
 // Create the header shortcode
 function aspiredev_header_shortcode($atts) {
     $options = get_option('aspiredev_header_menu_settings');
@@ -171,6 +483,21 @@ function aspiredev_header_shortcode($atts) {
     $submenu_hover = $options['submenu_hover'] ?? '#3498db';
     $padding = $options['padding'] ?? '10';
     $font_size = $options['font_size'] ?? '16';
+    $border_radius = $options['border_radius'] ?? '6';
+    $shadow_intensity = $options['shadow_intensity'] ?? '3';
+    $transition_speed = $options['transition_speed'] ?? '0.3';
+    $item_spacing = $options['item_spacing'] ?? '20';
+    $submenu_width = $options['submenu_width'] ?? '600';
+
+    // Handle theme color overrides if selected
+    $theme_colors = aspiredev_header_menu_get_theme_colors();
+
+    foreach (['header_bg', 'header_gradient', 'menu_text', 'menu_hover', 'submenu_bg', 'submenu_hover'] as $field) {
+        $theme_key = 'theme_color_' . $field;
+        if (!empty($options[$theme_key]) && isset($theme_colors[array_search($options[$theme_key], $theme_colors)])) {
+            $$field = $options[$theme_key];
+        }
+    }
 
     // Default color schemes
     $color_schemes = [
@@ -251,15 +578,28 @@ function aspiredev_header_shortcode($atts) {
         <style>
             .aspiredev-header {
                 background: linear-gradient(90deg, <?php echo esc_attr($header_bg); ?>, <?php echo esc_attr($header_gradient); ?>);
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+                box-shadow: 0 <?php echo esc_attr($shadow_intensity * 2); ?>px <?php echo esc_attr($shadow_intensity * 4); ?>px rgba(0, 0, 0, 0.2);
                 position: relative;
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                width: 100%;
+                box-sizing: border-box;
             }
 
             .aspiredev-nav {
                 max-width: 1200px;
                 margin: 0 auto;
                 position: relative;
+                padding: 0 15px;
+            }
+
+            .menu-toggle {
+                display: none;
+                font-size: 24px;
+                color: <?php echo esc_attr($menu_text); ?>;
+                background: none;
+                border: none;
+                cursor: pointer;
+                padding: 10px;
             }
 
             .main-menu {
@@ -270,11 +610,12 @@ function aspiredev_header_shortcode($atts) {
                 justify-content: center;
                 align-items: center;
                 height: 100%;
+                flex-wrap: wrap;
             }
 
             .menu-item {
                 position: relative;
-                margin: 0 20px;
+                margin: 0 <?php echo esc_attr($item_spacing); ?>px;
                 display: flex;
                 align-items: center;
             }
@@ -286,16 +627,29 @@ function aspiredev_header_shortcode($atts) {
                 font-weight: 500;
                 padding: 10px 18px;
                 display: block;
-                transition: all 0.3s ease;
-                border-radius: 6px;
+                transition: color <?php echo esc_attr($transition_speed); ?>s ease;
+                border-radius: <?php echo esc_attr($border_radius); ?>px;
                 position: relative;
             }
 
+            .menu-item a::before {
+                content: '';
+                position: absolute;
+                bottom: 0;
+                left: 50%;
+                width: 0;
+                height: 2px;
+                background: <?php echo esc_attr($menu_hover); ?>;
+                transition: width <?php echo esc_attr($transition_speed); ?>s ease;
+                transform: translateX(-50%);
+            }
+
+            .menu-item a:hover::before {
+                width: 85%;
+            }
+
             .menu-item a:hover {
-                background: linear-gradient(135deg, <?php echo esc_attr($menu_hover); ?>, #2980b9);
                 color: #ffffff;
-                transform: translateY(-2px);
-                box-shadow: 0 3px 6px rgba(52, 152, 219, 0.3);
             }
 
             .has-submenu > a::after {
@@ -303,7 +657,7 @@ function aspiredev_header_shortcode($atts) {
                 font-size: 10px;
                 margin-left: 8px;
                 vertical-align: middle;
-                transition: transform 0.3s ease;
+                transition: transform <?php echo esc_attr($transition_speed); ?>s ease;
             }
 
             .submenu-item-level1 > a::after {
@@ -311,7 +665,7 @@ function aspiredev_header_shortcode($atts) {
                 font-size: 10px;
                 margin-left: 8px;
                 vertical-align: middle;
-                transition: transform 0.3s ease;
+                transition: transform <?php echo esc_attr($transition_speed); ?>s ease;
             }
 
             .has-submenu:hover > a::after {
@@ -323,8 +677,8 @@ function aspiredev_header_shortcode($atts) {
                 margin: 0;
                 padding: 0;
                 background: <?php echo esc_attr($submenu_bg); ?>;
-                border-radius: 8px;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                border-radius: <?php echo esc_attr($border_radius); ?>px;
+                box-shadow: 0 <?php echo esc_attr($shadow_intensity * 2); ?>px <?php echo esc_attr($shadow_intensity * 4); ?>px rgba(0, 0, 0, 0.3);
                 position: absolute;
                 top: 100%;
                 left: 0;
@@ -332,12 +686,11 @@ function aspiredev_header_shortcode($atts) {
                 flex-direction: row;
                 gap: 8px;
                 padding: 12px 0;
-                min-width: 600px;
+                min-width: <?php echo esc_attr($submenu_width); ?>px;
                 visibility: hidden;
                 opacity: 0;
-                transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+                transition: opacity <?php echo esc_attr($transition_speed); ?>s ease, visibility 0s linear <?php echo esc_attr($transition_speed); ?>s;
                 z-index: 1000;
-                position: absolute;
             }
 
             .submenu.level-2 {
@@ -346,41 +699,56 @@ function aspiredev_header_shortcode($atts) {
                 left: 0;
                 width: 100%;
                 background: <?php echo esc_attr($submenu_bg); ?>;
-                border-radius: 6px;
+                border-radius: <?php echo esc_attr($border_radius); ?>px;
                 padding: 15px;
                 box-sizing: border-box;
                 visibility: hidden;
                 opacity: 0;
-                transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+                transition: opacity <?php echo esc_attr($transition_speed); ?>s ease, visibility 0s linear <?php echo esc_attr($transition_speed); ?>s;
                 z-index: 999;
-                box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+                box-shadow: 0 <?php echo esc_attr($shadow_intensity); ?>px <?php echo esc_attr($shadow_intensity * 3); ?>px rgba(0, 0, 0, 0.2);
             }
 
             .submenu.level-2 .submenu-content {
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-                gap: 20px;
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+                gap: 15px;
                 max-height: 600px;
             }
 
             .submenu.level-2 .submenu-item {
-                flex: 0 0 180px;
+                flex: 0 0 120px;
             }
 
             .submenu.level-2 .submenu-item a {
                 color: <?php echo esc_attr($menu_text); ?>;
                 padding: 10px 15px;
-                font-size: <?php echo esc_attr($font_size - 1); ?>px; /* Slightly smaller for submenus */
+                font-size: <?php echo esc_attr($font_size - 1); ?>px;
                 font-weight: 400;
                 display: block;
-                border-radius: 4px;
-                transition: all 0.3s ease;
+                border-radius: <?php echo esc_attr($border_radius); ?>px;
+                transition: color <?php echo esc_attr($transition_speed); ?>s ease;
+                position: relative;
+            }
+
+            .submenu.level-2 .submenu-item a::before {
+                content: '';
+                position: absolute;
+                bottom: 0;
+                left: 50%;
+                width: 0;
+                height: 2px;
+                background: <?php echo esc_attr($submenu_hover); ?>;
+                transition: width <?php echo esc_attr($transition_speed); ?>s ease;
+                transform: translateX(-50%);
+            }
+
+            .submenu.level-2 .submenu-item a:hover::before {
+                width: 85%;
             }
 
             .submenu.level-2 .submenu-item a:hover {
-                background: <?php echo esc_attr($submenu_hover); ?>;
                 color: #ffffff;
-                transform: translateX(4px);
             }
 
             .menu-item.has-submenu:hover > .submenu.level-1,
@@ -391,14 +759,40 @@ function aspiredev_header_shortcode($atts) {
             }
 
             /* Responsive Design */
-            @media (max-width: 768px) {
+            @media (max-width: 991px) {
+                .menu-toggle {
+                    display: block;
+                }
+
                 .main-menu {
+                    display: none;
                     flex-direction: column;
-                    align-items: center;
+                    width: 100%;
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    background: <?php echo esc_attr($header_bg); ?>;
+                    padding: 10px 0;
+                    z-index: 1000;
+                }
+
+                .main-menu.active {
+                    display: flex;
                 }
 
                 .menu-item {
                     margin: 8px 0;
+                    width: 100%;
+                    text-align: center;
+                }
+
+                .menu-item a {
+                    padding: 12px 20px;
+                    font-size: <?php echo esc_attr($font_size); ?>px;
+                }
+
+                .menu-item a::before {
+                    display: none; /* Disable hover line effect on mobile */
                 }
 
                 .submenu.level-1 {
@@ -406,17 +800,81 @@ function aspiredev_header_shortcode($atts) {
                     width: 100%;
                     min-width: auto;
                     flex-direction: column;
-                    padding: 8px;
+                    padding: 0;
+                    background: <?php echo esc_attr($submenu_bg); ?>;
+                    box-shadow: none;
+                    visibility: visible;
+                    opacity: 1;
+                    display: none;
+                }
+
+                .submenu.level-1.active {
+                    display: flex;
                 }
 
                 .submenu.level-2 {
                     position: static;
                     width: 100%;
-                    padding: 12px;
+                    padding: 0;
+                    background: <?php echo esc_attr($submenu_bg); ?>;
+                    box-shadow: none;
+                    visibility: visible;
+                    opacity: 1;
+                    display: none;
+                }
+
+                .submenu.level-2.active {
+                    display: block;
+                }
+
+                .submenu.level-2 .submenu-content {
+                    grid-template-columns: 1fr;
+                    gap: 10px;
+                }
+
+                .submenu.level-2 .submenu-item a::before {
+                    display: none; /* Disable hover line effect on mobile */
+                }
+
+                .has-submenu > a::after {
+                    display: none;
+                }
+            }
+
+            @media (max-width: 768px) {
+                .menu-item a {
+                    font-size: <?php echo esc_attr($font_size - 2); ?>px;
+                }
+
+                .submenu.level-2 .submenu-item a {
+                    font-size: <?php echo esc_attr($font_size - 3); ?>px;
+                }
+
+                .aspiredev-nav {
+                    padding: 0 10px;
+                }
+            }
+
+            @media (max-width: 576px) {
+                .aspiredev-nav {
+                    padding: 0 5px;
+                }
+
+                .menu-item a {
+                    padding: 10px 15px;
+                }
+
+                .submenu.level-1 {
+                    min-width: 100%;
                 }
             }
         </style>
         <nav class="aspiredev-nav">
+            <button class="menu-toggle" aria-label="Toggle Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
             <ul class="main-menu">
                 <?php foreach ($menu_tree as $item): ?>
                     <li class="menu-item <?php echo !empty($item->children) ? 'has-submenu' : ''; ?>" 
@@ -456,7 +914,7 @@ function aspiredev_header_shortcode($atts) {
 }
 add_shortcode('header', 'aspiredev_header_shortcode');
 
-// Ensure compatibility with Elementor
+// Ensure compatibility with Elementor and add toggle functionality
 add_action('wp_footer', function() {
     if (!class_exists('Elementor\Plugin') || !\Elementor\Plugin::$instance->editor->is_edit_mode()) {
         ?>
@@ -465,14 +923,18 @@ add_action('wp_footer', function() {
                 var $j = $.noConflict();
 
                 $j(document).ready(function() {
-                    var $level2 = $j('.submenu.level-2');
-                    var $level2Content = $j('.submenu.level-2 .submenu-content');
-                    var defaultId = $level2.data('default-id');
+                    var $menuToggle = $j('.menu-toggle');
+                    var $mainMenu = $j('.main-menu');
+                    var currentLevel2Id = null; // Track the currently displayed level-2 submenu ID
 
-                    console.log('Script loaded, defaultId:', defaultId); // Debug log
+                    // Toggle menu on mobile
+                    $menuToggle.on('click', function() {
+                        $mainMenu.toggleClass('active');
+                    });
 
                     // Function to populate level-2 content
-                    function updateLevel2Content(id) {
+                    function updateLevel2Content(id, $submenuLevel2) {
+                        var $level2Content = $submenuLevel2.find('.submenu-content');
                         $level2Content.empty();
                         console.log('Updating content for id:', id); // Debug log
                         var items = $j('.submenu-item[data-child-id="' + id + '"]').closest('li').find('ul li').map(function() {
@@ -500,59 +962,114 @@ add_action('wp_footer', function() {
                                 )
                             );
                         });
+
+                        currentLevel2Id = id; // Update the current level-2 ID
                     }
 
-                    // Initialize with default content
-                    if (defaultId) {
-                        console.log('Initializing with default content for id:', defaultId); // Debug log
-                        updateLevel2Content(defaultId);
-                    }
+                    // Initialize with default content for each level-2 submenu
+                    $j('.submenu.level-2').each(function() {
+                        var defaultId = $j(this).data('default-id');
+                        if (defaultId) {
+                            console.log('Initializing with default content for id:', defaultId); // Debug log
+                            updateLevel2Content(defaultId, $j(this));
+                        }
+                    });
 
-                    // Show level-1 and level-2 on hover over main menu item
+                    // Show level-1 and level-2 on hover for desktop
                     $j('.menu-item.has-submenu').hover(
                         function() {
-                            console.log('Hovering over menu item'); // Debug log
-                            $j(this).find('.submenu.level-1').css({
-                                'visibility': 'visible',
-                                'opacity': '1'
-                            });
-                            $j(this).find('.submenu.level-2').css({
-                                'visibility': 'visible',
-                                'opacity': '1'
-                            });
-                            var firstChildId = $j(this).find('.submenu-item:first').data('child-id');
-                            if (firstChildId) {
-                                updateLevel2Content(firstChildId);
+                            if (window.innerWidth > 991) {
+                                console.log('Hovering over menu item'); // Debug log
+                                var $submenuLevel1 = $j(this).find('.submenu.level-1');
+                                var $submenuLevel2 = $j(this).find('.submenu.level-2');
+                                $submenuLevel1.css({
+                                    'visibility': 'visible',
+                                    'opacity': '1'
+                                });
+                                $submenuLevel2.css({
+                                    'visibility': 'visible',
+                                    'opacity': '1'
+                                });
+                                var firstChildId = $j(this).find('.submenu-item:first').data('child-id');
+                                if (firstChildId) {
+                                    updateLevel2Content(firstChildId, $submenuLevel2);
+                                }
                             }
                         },
                         function() {
-                            $j(this).find('.submenu.level-1').css({
-                                'visibility': 'hidden',
-                                'opacity': '0'
-                            });
-                            $j(this).find('.submenu.level-2').css({
-                                'visibility': 'hidden',
-                                'opacity': '0'
-                            });
+                            if (window.innerWidth > 991) {
+                                $j(this).find('.submenu.level-1').css({
+                                    'visibility': 'hidden',
+                                    'opacity': '0'
+                                });
+                                $j(this).find('.submenu.level-2').css({
+                                    'visibility': 'hidden',
+                                    'opacity': '0'
+                                });
+                            }
                         }
                     );
 
-                    // Update level-2 content on hover over level-1 items
+                    // Toggle submenu on mobile for main menu items
+                    $j('.menu-item.has-submenu > a').on('click', function(e) {
+                        if (window.innerWidth <= 991) {
+                            e.preventDefault();
+                            var $submenu = $j(this).parent().find('.submenu.level-1');
+                            var $submenuLevel2 = $j(this).parent().find('.submenu.level-2');
+                            var isActive = $submenu.hasClass('active');
+                            
+                            // Close all other level-1 submenus
+                            $j('.submenu.level-1').not($submenu).removeClass('active');
+                            $j('.submenu.level-2').not($submenuLevel2).removeClass('active');
+
+                            $submenu.toggleClass('active');
+                            if (!isActive && $submenu.hasClass('active')) {
+                                var childId = $j(this).parent().find('.submenu-item:first').data('child-id');
+                                if (childId) {
+                                    updateLevel2Content(childId, $submenuLevel2);
+                                    $submenuLevel2.addClass('active');
+                                }
+                            } else {
+                                $submenuLevel2.removeClass('active');
+                            }
+                        }
+                    });
+
+                    // Update level-2 content on hover for level-1 items (desktop)
                     $j('.submenu-item').hover(
                         function() {
-                            var childId = $j(this).data('child-id');
-                            if (childId) {
-                                updateLevel2Content(childId);
+                            if (window.innerWidth > 991) {
+                                var childId = $j(this).data('child-id');
+                                if (childId) {
+                                    var $submenuLevel2 = $j(this).closest('.menu-item.has-submenu').find('.submenu.level-2');
+                                    updateLevel2Content(childId, $submenuLevel2);
+                                }
                             }
                         },
                         function() {
-                            var parent = $j(this).closest('.menu-item.has-submenu');
-                            var firstChildId = parent.find('.submenu-item:first').data('child-id');
-                            if (firstChildId) {
-                                updateLevel2Content(firstChildId);
-                            }
+                            // Do not reset to default on hover out to maintain current state
                         }
                     );
+
+                    // Toggle level-2 submenu on click for level-1 items (mobile)
+                    $j('.submenu-item a').on('click', function(e) {
+                        if (window.innerWidth <= 991) {
+                            e.preventDefault();
+                            var childId = $j(this).parent().data('child-id');
+                            var $submenuLevel2 = $j(this).closest('.menu-item.has-submenu').find('.submenu.level-2');
+                            var isActive = $submenuLevel2.hasClass('active');
+
+                            // Only update if clicking a different submenu item
+                            if (childId && currentLevel2Id !== childId) {
+                                updateLevel2Content(childId, $submenuLevel2);
+                                $submenuLevel2.addClass('active');
+                            } else if (isActive) {
+                                $submenuLevel2.removeClass('active');
+                            } else {
+                                $submenuLevel2.addClass('active');
+                            }
+                        }
+                    });
                 });
             })(jQuery);
         </script>

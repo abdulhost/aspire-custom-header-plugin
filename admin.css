@@ -1,0 +1,268 @@
+/* Frontend Styles */
+.aspiredev-header {
+    background: linear-gradient(90deg, var(--aspiredev-header-bg, #34495e), var(--aspiredev-header-gradient, #2c3e50)) !important;
+    box-shadow: 0 calc(var(--aspiredev-shadow-intensity) * 2px) calc(var(--aspiredev-shadow-intensity) * 4px) rgba(0, 0, 0, 0.2);
+    position: relative;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    width: 100%;
+    padding: var(--aspiredev-padding) 0;
+}
+
+.aspiredev-nav {
+    max-width: 1200px;
+    margin: 0 auto;
+    position: relative;
+}
+
+.menu-toggle {
+    display: none;
+    font-size: 24px;
+    color: var(--aspiredev-menu-text, #ecf0f1);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 10px;
+}
+
+.main-menu {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    flex-wrap: wrap;
+}
+
+.menu-item {
+    position: relative;
+    margin: 0 var(--aspiredev-item-spacing);
+    display: flex;
+    align-items: center;
+}
+
+.menu-item a {
+    color: var(--aspiredev-menu-text, #ecf0f1);
+    text-decoration: none;
+    font-size: var(--aspiredev-font-size);
+    font-weight: 500;
+    padding: 10px 18px;
+    display: block;
+    transition: all var(--aspiredev-transition-speed) ease;
+    border-radius: var(--aspiredev-border-radius);
+    position: relative;
+}
+
+.menu-item a:hover {
+    background: linear-gradient(135deg, var(--aspiredev-menu-hover, #2980b9), #2980b9);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 calc(var(--aspiredev-shadow-intensity) * 1px) calc(var(--aspiredev-shadow-intensity) * 2px) rgba(52, 152, 219, 0.3);
+}
+
+.has-submenu > a::after {
+    content: "▼";
+    font-size: 10px;
+    margin-left: 8px;
+    vertical-align: middle;
+    transition: transform var(--aspiredev-transition-speed) ease;
+}
+
+.submenu-item-level1.has-submenu > a::after {
+    content: "▼";
+    font-size: 10px;
+    margin-left: 8px;
+    vertical-align: middle;
+    transition: transform var(--aspiredev-transition-speed) ease;
+}
+
+.has-submenu:hover > a::after {
+    transform: rotate(180deg);
+}
+
+.submenu.level-1 {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    background: var(--aspiredev-submenu-bg, #2c3e50);
+    border-radius: var(--aspiredev-border-radius);
+    box-shadow: 0 calc(var(--aspiredev-shadow-intensity) * 2px) calc(var(--aspiredev-shadow-intensity) * 4px) rgba(0, 0, 0, 0.3);
+    position: absolute;
+    top: 100%;
+    left: 0;
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    padding: 12px 0;
+    min-width: var(--aspiredev-submenu-width);
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity var(--aspiredev-transition-speed) ease, visibility 0s linear var(--aspiredev-transition-speed);
+    z-index: 1000;
+}
+
+.submenu.level-2 {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: var(--aspiredev-submenu-bg, #2c3e50);
+    border-radius: var(--aspiredev-border-radius);
+    padding: 15px;
+    box-sizing: border-box;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity var(--aspiredev-transition-speed) ease, visibility 0s linear var(--aspiredev-transition-speed);
+    z-index: 999;
+    box-shadow: 0 calc(var(--aspiredev-shadow-intensity) * 1px) calc(var(--aspiredev-shadow-intensity) * 3px) rgba(0, 0, 0, 0.2);
+}
+
+.submenu.level-2 .submenu-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+    max-height: 600px;
+}
+
+.submenu.level-2 .submenu-item {
+    flex: 0 0 180px;
+}
+
+.submenu.level-2 .submenu-item a {
+    color: var(--aspiredev-menu-text, #ecf0f1);
+    padding: 10px 15px;
+    font-size: calc(var(--aspiredev-font-size) - 1px);
+    font-weight: 400;
+    display: block;
+    border-radius: var(--aspiredev-border-radius);
+    transition: all var(--aspiredev-transition-speed) ease;
+}
+
+.submenu.level-2 .submenu-item a:hover {
+    background: var(--aspiredev-submenu-hover, #3498db);
+    color: #ffffff;
+    transform: translateX(4px);
+}
+
+.menu-item.has-submenu:hover > .submenu.level-1,
+.menu-item.has-submenu:hover .submenu.level-2 {
+    visibility: visible;
+    opacity: 1;
+    transition-delay: 0s;
+}
+
+/* Responsive Design */
+@media (max-width: 991px) {
+    .menu-toggle {
+        display: block;
+    }
+
+    .main-menu {
+        display: none;
+        flex-direction: column;
+        width: 100%;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        background: var(--aspiredev-header-bg, #34495e);
+        padding: 10px 0;
+    }
+
+    .main-menu.active {
+        display: flex;
+    }
+
+    .menu-item {
+        margin: 8px 0;
+        width: 100%;
+        text-align: center;
+    }
+
+    .menu-item a {
+        padding: 12px 20px;
+    }
+
+    .submenu.level-1 {
+        position: static;
+        width: 100%;
+        min-width: auto;
+        flex-direction: column;
+        padding: 0;
+        background: var(--aspiredev-submenu-bg, #2c3e50);
+        box-shadow: none;
+    }
+
+    .submenu.level-2 {
+        position: static;
+        width: 100%;
+        padding: 0;
+        background: var(--aspiredev-submenu-bg, #2c3e50);
+        box-shadow: none;
+    }
+
+    .submenu.level-2 .submenu-content {
+        grid-template-columns: 1fr;
+    }
+
+    .has-submenu > a::after {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .menu-item a {
+        font-size: calc(var(--aspiredev-font-size) - 2px);
+    }
+
+    .submenu.level-2 .submenu-item a {
+        font-size: calc(var(--aspiredev-font-size) - 3px);
+    }
+}
+
+@media (max-width: 576px) {
+    .aspiredev-nav {
+        padding: 0 10px;
+    }
+
+    .menu-item a {
+        padding: 10px 15px;
+    }
+}
+
+/* Admin Styles */
+.toplevel_page_aspiredev-header-menu .aspiredev-color-section {
+    margin-bottom: 20px;
+}
+
+.toplevel_page_aspiredev-header-menu .aspiredev-color-section h4 {
+    margin-top: 15px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.toplevel_page_aspiredev-header-menu .color-preview {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-left: 10px;
+    border: 1px solid #ccc;
+    vertical-align: middle;
+}
+
+.toplevel_page_aspiredev-header-menu .aspiredev-theme-color-select {
+    margin-right: 10px;
+}
+
+.toplevel_page_aspiredev-header-menu .aspiredev-about {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f9f9f9;
+    border-left: 4px solid #0073aa;
+    border-radius: 4px;
+}
+
+.toplevel_page_aspiredev-header-menu .aspiredev-about h3 {
+    margin-top: 0;
+    font-size: 18px;
+}
