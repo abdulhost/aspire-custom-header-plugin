@@ -1042,7 +1042,6 @@ add_shortcode('header', 'aspiredev_header_shortcode');
 
 // Ensure compatibility with Elementor and add toggle functionality
 add_action('wp_footer', function() {
-    if (!class_exists('Elementor\Plugin') || !\Elementor\Plugin::$instance->editor->is_edit_mode()) {
         ?>
         <script>
             (function($) {
@@ -1053,14 +1052,47 @@ add_action('wp_footer', function() {
                     var $mainMenu = $j('.wide-main-menu');
                     var currentLevel2Id = null;
 
+                    // Function to reset menu states
+                    function resetMenuState() {
+                        $menuToggle.removeClass('active');
+                        $mainMenu.removeClass('active').removeAttr('style');
+                        $j('.mobile-submenu.level-1, .mobile-submenu.level-2').removeClass('active').css('display', '');
+                        $j('.mobile-has-submenu, .mobile-submenu-item-level1').removeClass('active');
+                        $j('.wide-submenu.level-1, .wide-submenu.level-2').css({
+                            'visibility': '',
+                            'opacity': '',
+                            'display': ''
+                        });
+                        // Ensure mobile submenus are hidden by default
+                        $j('.mobile-submenu.level-1, .mobile-submenu.level-2').css('display', 'none');
+                    }
+
+                    // Function to initialize menu based on viewport
+                    function initializeMenu() {
+                        resetMenuState();
+                        if (window.innerWidth > 991) {
+                            // Desktop: Ensure main menu is visible, submenus rely on hover
+                            $mainMenu.css('display', 'flex');
+                            $j('.wide-submenu.level-2').each(function() {
+                                var defaultId = $j(this).data('default-id');
+                                if (defaultId) {
+                                    updateLevel2Content(defaultId, $j(this));
+                                }
+                            });
+                        } else {
+                            // Mobile: Main menu hidden until toggled
+                            $mainMenu.css('display', 'none');
+                        }
+                    }
+
                     // Toggle main menu on mobile
                     $menuToggle.on('click', function() {
-                        $j(this).toggleClass('active');
-                        $mainMenu.toggleClass('active');
-                        // Close all submenus when toggling main menu
-                        $j('.mobile-submenu.level-1').removeClass('active');
-                        $j('.mobile-submenu.level-2').removeClass('active');
-                        $j('.mobile-has-submenu').removeClass('active');
+                        if (window.innerWidth <= 991) {
+                            var isActive = $mainMenu.hasClass('active');
+                            resetMenuState();
+                            $j(this).toggleClass('active', !isActive);
+                            $mainMenu.toggleClass('active', !isActive).css('display', isActive ? 'none' : 'flex');
+                        }
                     });
 
                     // Toggle level-1 submenu on mobile
@@ -1071,14 +1103,14 @@ add_action('wp_footer', function() {
                             var $submenu = $parent.find('.mobile-submenu.level-1');
                             var isActive = $submenu.hasClass('active');
 
-                            // Close all other level-1 submenus and their parents
-                            $j('.mobile-submenu.level-1').not($submenu).removeClass('active');
+                            // Close other level-1 and level-2 submenus
+                            $j('.mobile-submenu.level-1').not($submenu).removeClass('active').css('display', 'none');
                             $j('.mobile-menu-item.mobile-has-submenu').not($parent).removeClass('active');
-                            $j('.mobile-submenu.level-2').removeClass('active');
+                            $j('.mobile-submenu.level-2').removeClass('active').css('display', 'none');
                             $j('.mobile-submenu-item-level1.mobile-has-submenu').removeClass('active');
 
-                            $parent.toggleClass('active');
-                            $submenu.toggleClass('active');
+                            $parent.toggleClass('active', !isActive);
+                            $submenu.toggleClass('active', !isActive).css('display', isActive ? 'none' : 'flex');
                         }
                     });
 
@@ -1090,12 +1122,12 @@ add_action('wp_footer', function() {
                             var $submenu = $parent.find('.mobile-submenu.level-2.custom-mobile');
                             var isActive = $submenu.hasClass('active');
 
-                            // Close all other level-2 submenus and their parents
-                            $j('.mobile-submenu.level-2').not($submenu).removeClass('active');
+                            // Close other level-2 submenus
+                            $j('.mobile-submenu.level-2').not($submenu).removeClass('active').css('display', 'none');
                             $j('.mobile-submenu-item-level1.mobile-has-submenu').not($parent).removeClass('active');
 
-                            $parent.toggleClass('active');
-                            $submenu.toggleClass('active');
+                            $parent.toggleClass('active', !isActive);
+                            $submenu.toggleClass('active', !isActive).css('display', isActive ? 'none' : 'block');
                         }
                     });
 
@@ -1130,17 +1162,7 @@ add_action('wp_footer', function() {
                         currentLevel2Id = id;
                     }
 
-                    // Initialize with default content for each level-2 submenu (desktop only)
-                    $j('.wide-submenu.level-2').each(function() {
-                        if (window.innerWidth > 991) {
-                            var defaultId = $j(this).data('default-id');
-                            if (defaultId) {
-                                updateLevel2Content(defaultId, $j(this));
-                            }
-                        }
-                    });
-
-                    // Show level-1 and level-2 on hover for desktop
+                    // Hover effects for desktop
                     $j('.wide-menu-item.wide-has-submenu').hover(
                         function() {
                             if (window.innerWidth > 991) {
@@ -1148,11 +1170,13 @@ add_action('wp_footer', function() {
                                 var $submenuLevel2 = $j(this).find('.wide-submenu.level-2');
                                 $submenuLevel1.css({
                                     'visibility': 'visible',
-                                    'opacity': '1'
+                                    'opacity': '1',
+                                    'display': 'flex'
                                 });
                                 $submenuLevel2.css({
                                     'visibility': 'visible',
-                                    'opacity': '1'
+                                    'opacity': '1',
+                                    'display': 'block'
                                 });
                                 var firstChildId = $j(this).find('.wide-submenu-item:first').data('child-id');
                                 if (firstChildId) {
@@ -1164,17 +1188,18 @@ add_action('wp_footer', function() {
                             if (window.innerWidth > 991) {
                                 $j(this).find('.wide-submenu.level-1').css({
                                     'visibility': 'hidden',
-                                    'opacity': '0'
+                                    'opacity': '0',
+                                    'display': ''
                                 });
                                 $j(this).find('.wide-submenu.level-2').css({
                                     'visibility': 'hidden',
-                                    'opacity': '0'
+                                    'opacity': '0',
+                                    'display': ''
                                 });
                             }
                         }
                     );
 
-                    // Update level-2 content on hover for level-1 items (desktop)
                     $j('.wide-submenu-item').hover(
                         function() {
                             if (window.innerWidth > 991) {
@@ -1189,10 +1214,24 @@ add_action('wp_footer', function() {
                             // Maintain current state
                         }
                     );
+
+                    // Handle window resize
+                    var resizeTimer;
+                    $j(window).on('resize', function() {
+                        clearTimeout(resizeTimer);
+                        resizeTimer = setTimeout(function() {
+                            initializeMenu();
+                        }, 200);
+                    });
+
+                    // Initial setup
+                    initializeMenu();
                 });
             })(jQuery);
         </script>
         <?php
-    }
+    
 });
+
+
 ?>
