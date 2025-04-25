@@ -1,11 +1,11 @@
 <?php
 /*
 Plugin Name: AspireDev Header Menu
-Plugin URI: https://aspiredev.com
+Plugin URI: #
 Description: A WordPress plugin to create a header with a dynamic, multi-level navigation menu using a shortcode, with an enhanced admin panel for customization. Developed by AspireDev.
 Version: 2.1.8
 Author: AspireDev
-Author URI: https://aspiredev.com
+Author URI: #
 License: GPL2
 */
 
@@ -681,7 +681,7 @@ function aspiredev_header_shortcode($atts) {
                 list-style: none;
         margin: 0;
         padding: 2px 0px;
-        padding-left:20px;
+        /* padding-left:20px; */
                 }
                 .mobile-submenu.level-2.custom-mobile{
                     display:none;
@@ -868,7 +868,7 @@ function aspiredev_header_shortcode($atts) {
 
                 .mobile-submenu.level-2 {
                     position: static;
-                    width: 100%;
+                    /* width: 100%; */
                     padding: 0 20px;
                     background: <?php echo esc_attr($submenu_bg); ?>;
                     box-shadow: none;
