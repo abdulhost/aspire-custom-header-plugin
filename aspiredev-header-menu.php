@@ -3,7 +3,7 @@
 Plugin Name: AspireDev Header Menu
 Plugin URI: https://aspiredev.com
 Description: A WordPress plugin to create a header with a dynamic, multi-level navigation menu using a shortcode, with an enhanced admin panel for customization. Developed by AspireDev.
-Version: 2.1.3
+Version: 2.1.8
 Author: AspireDev
 Author URI: https://aspiredev.com
 License: GPL2
@@ -126,7 +126,6 @@ function aspiredev_header_menu_get_theme_colors() {
 
     // Elementor colors
     if (did_action('elementor/loaded') && class_exists('\Elementor\Plugin')) {
-        // Try fetching from active kit (Elementor >= 3.0)
         $kit = \Elementor\Plugin::$instance->kits_manager->get_active_kit();
         if ($kit) {
             $system_colors = $kit->get_settings('system_colors');
@@ -146,7 +145,6 @@ function aspiredev_header_menu_get_theme_colors() {
                 }
             }
         }
-        // Fallback to schemes_manager (older Elementor versions)
         if (empty($theme_colors) && \Elementor\Plugin::$instance->schemes_manager) {
             $color_scheme = \Elementor\Plugin::$instance->schemes_manager->get_scheme('color');
             if ($color_scheme) {
@@ -322,9 +320,7 @@ function aspiredev_header_menu_custom_colors_callback() {
     $submenu_bg = $options['submenu_bg'] ?? '#2c3e50';
     $submenu_hover = $options['submenu_hover'] ?? '#3498db';
 
-    // Get theme colors using the new function
     $theme_colors = aspiredev_header_menu_get_theme_colors();
-
     ?>
     <div class="aspiredev-color-section">
         <h4>Theme Colors</h4>
@@ -489,9 +485,7 @@ function aspiredev_header_shortcode($atts) {
     $item_spacing = $options['item_spacing'] ?? '20';
     $submenu_width = $options['submenu_width'] ?? '600';
 
-    // Handle theme color overrides if selected
     $theme_colors = aspiredev_header_menu_get_theme_colors();
-
     foreach (['header_bg', 'header_gradient', 'menu_text', 'menu_hover', 'submenu_bg', 'submenu_hover'] as $field) {
         $theme_key = 'theme_color_' . $field;
         if (!empty($options[$theme_key]) && isset($theme_colors[array_search($options[$theme_key], $theme_colors)])) {
@@ -499,7 +493,6 @@ function aspiredev_header_shortcode($atts) {
         }
     }
 
-    // Default color schemes
     $color_schemes = [
         'default' => [
             'header_bg' => '#34495e',
@@ -537,7 +530,6 @@ function aspiredev_header_shortcode($atts) {
         $submenu_hover = $colors['submenu_hover'];
     }
 
-    // Sanitize menu slug
     $atts = shortcode_atts(
         array(
             'menu' => 'main-menu',
@@ -547,22 +539,17 @@ function aspiredev_header_shortcode($atts) {
     );
     $menu_slug = sanitize_text_field($atts['menu']);
 
-    // Get the menu
     $menu_items = wp_get_nav_menu_items($menu_slug);
-
     if (!$menu_items) {
         return '<div class="aspiredev-header">No menu found for slug: ' . esc_html($menu_slug) . '</div>';
     }
 
-    // Organize menu items into a hierarchical structure
     $menu_tree = array();
     $menu_items_by_id = array();
-
     foreach ($menu_items as $item) {
         $menu_items_by_id[$item->ID] = $item;
         $item->children = array();
     }
-
     foreach ($menu_items as $item) {
         if ($item->menu_item_parent && isset($menu_items_by_id[$item->menu_item_parent])) {
             $menu_items_by_id[$item->menu_item_parent]->children[] = $item;
@@ -571,7 +558,6 @@ function aspiredev_header_shortcode($atts) {
         }
     }
 
-    // Generate menu HTML with embedded CSS and data attributes
     ob_start();
     ?>
     <header class="aspiredev-header" style="padding: <?php echo esc_attr($padding); ?>px 0;">
@@ -588,39 +574,84 @@ function aspiredev_header_shortcode($atts) {
             .aspiredev-nav {
                 max-width: 1200px;
                 margin: 0 auto;
-                position: relative;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
                 padding: 0 15px;
+                position: relative;
+            }
+
+            .site-branding {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .site-icon img {
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+            }
+
+            .site-title {
+                color: <?php echo esc_attr($menu_text); ?>;
+                font-size: <?php echo esc_attr($font_size + 2); ?>px;
+                font-weight: 600;
+                text-decoration: none;
+                display: block;
             }
 
             .menu-toggle {
                 display: none;
-                font-size: 24px;
-                color: <?php echo esc_attr($menu_text); ?>;
                 background: none;
                 border: none;
                 cursor: pointer;
                 padding: 10px;
+                position: relative;
+                z-index: 1001;
             }
 
-            .main-menu {
+            .menu-toggle span {
+                display: block;
+                width: 25px;
+                height: 3px;
+                background: <?php echo esc_attr($menu_text); ?>;
+                margin: 5px 0;
+                transition: all <?php echo esc_attr($transition_speed); ?>s ease;
+            }
+
+            .menu-toggle.active span:nth-child(1) {
+                transform: rotate(45deg) translate(5px, 5px);
+            }
+
+            .menu-toggle.active span:nth-child(2) {
+                opacity: 0;
+            }
+
+            .menu-toggle.active span:nth-child(3) {
+                transform: rotate(-45deg) translate(7px, -7px);
+            }
+
+            /* Widescreen Menu Styles */
+            .wide-main-menu {
                 list-style: none;
                 margin: 0;
                 padding: 0;
                 display: flex;
-                justify-content: center;
+                justify-content: flex-end;
                 align-items: center;
                 height: 100%;
                 flex-wrap: wrap;
             }
 
-            .menu-item {
+            .wide-menu-item {
                 position: relative;
                 margin: 0 <?php echo esc_attr($item_spacing); ?>px;
                 display: flex;
                 align-items: center;
             }
 
-            .menu-item a {
+            .wide-menu-item a {
                 color: <?php echo esc_attr($menu_text); ?>;
                 text-decoration: none;
                 font-size: <?php echo esc_attr($font_size); ?>px;
@@ -632,7 +663,7 @@ function aspiredev_header_shortcode($atts) {
                 position: relative;
             }
 
-            .menu-item a::before {
+            .wide-menu-item a::before {
                 content: '';
                 position: absolute;
                 bottom: 0;
@@ -643,16 +674,27 @@ function aspiredev_header_shortcode($atts) {
                 transition: width <?php echo esc_attr($transition_speed); ?>s ease;
                 transform: translateX(-50%);
             }
-
-            .menu-item a:hover::before {
+            .mobile-submenu.level-2.custom-mobile.active{
+                    display:block;
+                }
+            .mobile-submenu.level-2.custom-mobile> li{
+                list-style: none;
+        margin: 0;
+        padding: 2px 0px;
+        padding-left:20px;
+                }
+                .mobile-submenu.level-2.custom-mobile{
+                    display:none;
+                }
+            .wide-menu-item a:hover::before {
                 width: 85%;
             }
 
-            .menu-item a:hover {
+            .wide-menu-item a:hover {
                 color: #ffffff;
             }
 
-            .has-submenu > a::after {
+            .wide-has-submenu > a::after {
                 content: "▼";
                 font-size: 10px;
                 margin-left: 8px;
@@ -660,7 +702,7 @@ function aspiredev_header_shortcode($atts) {
                 transition: transform <?php echo esc_attr($transition_speed); ?>s ease;
             }
 
-            .submenu-item-level1 > a::after {
+            .wide-submenu-item-level1 > a::after {
                 content: "▼";
                 font-size: 10px;
                 margin-left: 8px;
@@ -668,11 +710,11 @@ function aspiredev_header_shortcode($atts) {
                 transition: transform <?php echo esc_attr($transition_speed); ?>s ease;
             }
 
-            .has-submenu:hover > a::after {
+            .wide-has-submenu:hover > a::after {
                 transform: rotate(180deg);
             }
 
-            .submenu.level-1 {
+            .wide-submenu.level-1 {
                 list-style: none;
                 margin: 0;
                 padding: 0;
@@ -681,7 +723,7 @@ function aspiredev_header_shortcode($atts) {
                 box-shadow: 0 <?php echo esc_attr($shadow_intensity * 2); ?>px <?php echo esc_attr($shadow_intensity * 4); ?>px rgba(0, 0, 0, 0.3);
                 position: absolute;
                 top: 100%;
-                left: 0;
+                right: -50%;
                 display: flex;
                 flex-direction: row;
                 gap: 8px;
@@ -693,7 +735,7 @@ function aspiredev_header_shortcode($atts) {
                 z-index: 1000;
             }
 
-            .submenu.level-2 {
+            .wide-submenu.level-2 {
                 position: absolute;
                 top: 100%;
                 left: 0;
@@ -709,18 +751,18 @@ function aspiredev_header_shortcode($atts) {
                 box-shadow: 0 <?php echo esc_attr($shadow_intensity); ?>px <?php echo esc_attr($shadow_intensity * 3); ?>px rgba(0, 0, 0, 0.2);
             }
 
-            .submenu.level-2 .submenu-content {
+            .wide-submenu.level-2 .wide-submenu-content {
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
                 gap: 15px;
                 max-height: 600px;
             }
 
-            .submenu.level-2 .submenu-item {
+            .wide-submenu.level-2 .wide-submenu-item {
                 flex: 0 0 120px;
             }
 
-            .submenu.level-2 .submenu-item a {
+            .wide-submenu.level-2 .wide-submenu-item a {
                 color: <?php echo esc_attr($menu_text); ?>;
                 padding: 10px 15px;
                 font-size: <?php echo esc_attr($font_size - 1); ?>px;
@@ -731,7 +773,7 @@ function aspiredev_header_shortcode($atts) {
                 position: relative;
             }
 
-            .submenu.level-2 .submenu-item a::before {
+            .wide-submenu.level-2 .wide-submenu-item a::before {
                 content: '';
                 position: absolute;
                 bottom: 0;
@@ -743,59 +785,71 @@ function aspiredev_header_shortcode($atts) {
                 transform: translateX(-50%);
             }
 
-            .submenu.level-2 .submenu-item a:hover::before {
+            .wide-submenu.level-2 .wide-submenu-item a:hover::before {
                 width: 85%;
             }
 
-            .submenu.level-2 .submenu-item a:hover {
+            .wide-submenu.level-2 .wide-submenu-item a:hover {
                 color: #ffffff;
             }
 
-            .menu-item.has-submenu:hover > .submenu.level-1,
-            .menu-item.has-submenu:hover .submenu.level-2 {
+            .wide-menu-item.wide-has-submenu:hover > .wide-submenu.level-1,
+            .wide-menu-item.wide-has-submenu:hover .wide-submenu.level-2 {
                 visibility: visible;
                 opacity: 1;
                 transition-delay: 0s;
             }
 
-            /* Responsive Design */
+            .wide-submenu.level-2 .wide-level-2-items {
+                display: none;
+            }
+
+            /* Mobile Menu Styles */
             @media (max-width: 991px) {
                 .menu-toggle {
                     display: block;
                 }
 
-                .main-menu {
+                .wide-main-menu {
                     display: none;
                     flex-direction: column;
                     width: 100%;
                     position: absolute;
                     top: 100%;
                     left: 0;
-                    background: <?php echo esc_attr($header_bg); ?>;
+                    background: <?php echo esc_attr($submenu_bg); ?>;
                     padding: 10px 0;
                     z-index: 1000;
+                    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
                 }
 
-                .main-menu.active {
+                .wide-main-menu.active {
                     display: flex;
+                    flex-direction :row;
+                    position: relative;
                 }
+              
 
-                .menu-item {
+                .mobile-menu-item {
                     margin: 8px 0;
                     width: 100%;
-                    text-align: center;
+                    text-align: left;
+                    flex-direction: column;
                 }
 
-                .menu-item a {
+                .mobile-menu-item a {
                     padding: 12px 20px;
                     font-size: <?php echo esc_attr($font_size); ?>px;
+                    color: <?php echo esc_attr($menu_text); ?>;
+                    text-decoration: none;
+                    display: block;
                 }
 
-                .menu-item a::before {
-                    display: none; /* Disable hover line effect on mobile */
+                .mobile-menu-item a::before {
+                    display: none;
                 }
 
-                .submenu.level-1 {
+                .mobile-submenu.level-1 {
                     position: static;
                     width: 100%;
                     min-width: auto;
@@ -808,14 +862,14 @@ function aspiredev_header_shortcode($atts) {
                     display: none;
                 }
 
-                .submenu.level-1.active {
+                .mobile-submenu.level-1.active {
                     display: flex;
                 }
 
-                .submenu.level-2 {
+                .mobile-submenu.level-2 {
                     position: static;
                     width: 100%;
-                    padding: 0;
+                    padding: 0 20px;
                     background: <?php echo esc_attr($submenu_bg); ?>;
                     box-shadow: none;
                     visibility: visible;
@@ -823,35 +877,80 @@ function aspiredev_header_shortcode($atts) {
                     display: none;
                 }
 
-                .submenu.level-2.active {
+                .mobile-submenu.level-2.active {
                     display: block;
                 }
 
-                .submenu.level-2 .submenu-content {
-                    grid-template-columns: 1fr;
-                    gap: 10px;
+                .mobile-submenu.level-2 .mobile-level-2-items {
+                    list-style: none;
+                    margin: 0;
+                    padding: 10px 0;
                 }
 
-                .submenu.level-2 .submenu-item a::before {
-                    display: none; /* Disable hover line effect on mobile */
+                .mobile-submenu.level-2 .mobile-level-2-items li a {
+                    color: <?php echo esc_attr($menu_text); ?>;
+                    padding: 8px 15px;
+                    font-size: <?php echo esc_attr($font_size - 1); ?>px;
+                    display: block;
+                    text-decoration: none;
                 }
 
-                .has-submenu > a::after {
+                .mobile-submenu.level-2 .mobile-submenu-content {
                     display: none;
+                }
+
+                .mobile-submenu.level-2 .mobile-submenu-item a::before {
+                    display: none;
+                }
+
+                .mobile-has-submenu > a::after {
+                    content: "▶";
+                    float: right;
+                    font-size: 10px;
+                    /* margin-top: 4px; */
+                }
+
+                .mobile-has-submenu.active > a::after,
+                .mobile-submenu-item-level1.active > a::after {
+                    transform: rotate(90deg);
+                }
+
+                .mobile-submenu-item-level1 > a::after {
+                    float: right;
+                    content: "▶";
+                    font-size: 10px;
+                    margin-top: 4px;
+                }
+
+                .aspiredev-nav {
+                    flex-wrap: wrap;
+                }
+
+                .site-branding {
+                    flex: 1;
                 }
             }
 
             @media (max-width: 768px) {
-                .menu-item a {
+                .mobile-menu-item a {
                     font-size: <?php echo esc_attr($font_size - 2); ?>px;
                 }
 
-                .submenu.level-2 .submenu-item a {
+                .mobile-submenu.level-2 .mobile-level-2-items li a {
                     font-size: <?php echo esc_attr($font_size - 3); ?>px;
                 }
 
                 .aspiredev-nav {
                     padding: 0 10px;
+                }
+
+                .site-title {
+                    font-size: <?php echo esc_attr($font_size); ?>px;
+                }
+
+                .site-icon img {
+                    width: 24px;
+                    height: 24px;
                 }
             }
 
@@ -860,47 +959,74 @@ function aspiredev_header_shortcode($atts) {
                     padding: 0 5px;
                 }
 
-                .menu-item a {
+                .mobile-menu-item a {
                     padding: 10px 15px;
                 }
 
-                .submenu.level-1 {
+                .mobile-submenu.level-1 {
                     min-width: 100%;
+                }
+
+                .site-title {
+                    font-size: <?php echo esc_attr($font_size - 2); ?>px;
                 }
             }
         </style>
         <nav class="aspiredev-nav">
+            <div class="site-branding">
+                <?php if (get_site_icon_url()): ?>
+                    <div class="site-icon">
+                        <a href="<?php echo esc_url(home_url('/')); ?>">
+                            <img src="<?php echo esc_url(get_site_icon_url()); ?>" alt="Site Icon">
+                        </a>
+                    </div>
+                <?php endif; ?>
+                <a href="<?php echo esc_url(home_url('/')); ?>" class="site-title">
+                    <?php echo esc_html(get_bloginfo('name')); ?>
+                </a>
+            </div>
             <button class="menu-toggle" aria-label="Toggle Menu">
                 <span></span>
                 <span></span>
                 <span></span>
             </button>
-            <ul class="main-menu">
+            <ul class="wide-main-menu">
                 <?php foreach ($menu_tree as $item): ?>
-                    <li class="menu-item <?php echo !empty($item->children) ? 'has-submenu' : ''; ?>" 
+                    <li class="wide-menu-item mobile-menu-item <?php echo !empty($item->children) ? 'wide-has-submenu mobile-has-submenu' : ''; ?>" 
                         data-menu-id="<?php echo esc_attr($item->ID); ?>">
                         <a href="<?php echo esc_url($item->url); ?>"><?php echo esc_html($item->title); ?></a>
                         <?php if (!empty($item->children)): ?>
-                            <ul class="submenu level-1">
-                                <?php $first_child = true;
-                                foreach ($item->children as $child): ?>
-                                    <li class="submenu-item submenu-item-level1" data-child-id="<?php echo esc_attr($child->ID); ?>">
+                            <ul class="wide-submenu mobile-submenu level-1">
+                                <?php $first_child = true; ?>
+                                <?php foreach ($item->children as $child): ?>
+                                    <li class="wide-submenu-item mobile-submenu-item wide-submenu-item-level1 mobile-submenu-item-level1 <?php echo !empty($child->children) ? 'wide-has-submenu mobile-has-submenu' : ''; ?>" 
+                                        data-child-id="<?php echo esc_attr($child->ID); ?>">
                                         <a href="<?php echo esc_url($child->url); ?>"><?php echo esc_html($child->title); ?></a>
                                         <?php if (!empty($child->children)): ?>
-                                            <ul style="display:none;"> <!-- Hidden to avoid rendering, handled by JS -->
+                                           <!-- mobile -->
+                                            <ul class="mobile-submenu level-2 custom-mobile">
                                                 <?php foreach ($child->children as $grandchild): ?>
                                                     <li><a href="<?php echo esc_url($grandchild->url); ?>"><?php echo esc_html($grandchild->title); ?></a></li>
                                                 <?php endforeach; ?>
                                             </ul>
                                         <?php endif; ?>
                                     </li>
-                                    <?php if ($first_child) {
-                                        $first_child_id = $child->ID;
-                                        $first_child = false;
-                                    } ?>
+                                    <?php if ($first_child): ?>
+                                        <?php $first_child_id = $child->ID; ?>
+                                        <?php $first_child = false; ?>
+                                    <?php endif; ?>
                                 <?php endforeach; ?>
-                                <div class="submenu level-2" data-default-id="<?php echo esc_attr($first_child_id ?? ''); ?>">
-                                    <div class="submenu-content"></div>
+                                <div class="wide-submenu mobile-submenu level-2" data-default-id="<?php echo esc_attr($first_child_id ?? ''); ?>">
+                                    <ul class="wide-level-2-items mobile-level-2-items">
+                                        <?php foreach ($item->children as $child): ?>
+                                            <?php if (!empty($child->children)): ?>
+                                                <?php foreach ($child->children as $grandchild): ?>
+                                                    <li><a href="<?php echo esc_url($grandchild->url); ?>"><?php echo esc_html($grandchild->title); ?></a></li>
+                                                <?php endforeach; ?>
+                                            <?php endif; ?>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                    <div class="wide-submenu-content mobile-submenu-content"></div>
                                 </div>
                             </ul>
                         <?php endif; ?>
@@ -924,30 +1050,68 @@ add_action('wp_footer', function() {
 
                 $j(document).ready(function() {
                     var $menuToggle = $j('.menu-toggle');
-                    var $mainMenu = $j('.main-menu');
-                    var currentLevel2Id = null; // Track the currently displayed level-2 submenu ID
+                    var $mainMenu = $j('.wide-main-menu');
+                    var currentLevel2Id = null;
 
-                    // Toggle menu on mobile
+                    // Toggle main menu on mobile
                     $menuToggle.on('click', function() {
+                        $j(this).toggleClass('active');
                         $mainMenu.toggleClass('active');
+                        // Close all submenus when toggling main menu
+                        $j('.mobile-submenu.level-1').removeClass('active');
+                        $j('.mobile-submenu.level-2').removeClass('active');
+                        $j('.mobile-has-submenu').removeClass('active');
                     });
 
-                    // Function to populate level-2 content
+                    // Toggle level-1 submenu on mobile
+                    $j('.mobile-menu-item.mobile-has-submenu > a').on('click', function(e) {
+                        if (window.innerWidth <= 991) {
+                            e.preventDefault();
+                            var $parent = $j(this).parent();
+                            var $submenu = $parent.find('.mobile-submenu.level-1');
+                            var isActive = $submenu.hasClass('active');
+
+                            // Close all other level-1 submenus and their parents
+                            $j('.mobile-submenu.level-1').not($submenu).removeClass('active');
+                            $j('.mobile-menu-item.mobile-has-submenu').not($parent).removeClass('active');
+                            $j('.mobile-submenu.level-2').removeClass('active');
+                            $j('.mobile-submenu-item-level1.mobile-has-submenu').removeClass('active');
+
+                            $parent.toggleClass('active');
+                            $submenu.toggleClass('active');
+                        }
+                    });
+
+                    // Toggle level-2 submenu on mobile
+                    $j('.mobile-submenu-item-level1.mobile-has-submenu > a').on('click', function(e) {
+                        if (window.innerWidth <= 991) {
+                            e.preventDefault();
+                            var $parent = $j(this).parent();
+                            var $submenu = $parent.find('.mobile-submenu.level-2.custom-mobile');
+                            var isActive = $submenu.hasClass('active');
+
+                            // Close all other level-2 submenus and their parents
+                            $j('.mobile-submenu.level-2').not($submenu).removeClass('active');
+                            $j('.mobile-submenu-item-level1.mobile-has-submenu').not($parent).removeClass('active');
+
+                            $parent.toggleClass('active');
+                            $submenu.toggleClass('active');
+                        }
+                    });
+
+                    // Function to populate level-2 content for desktop
                     function updateLevel2Content(id, $submenuLevel2) {
-                        var $level2Content = $submenuLevel2.find('.submenu-content');
+                        var $level2Content = $submenuLevel2.find('.wide-submenu-content');
                         $level2Content.empty();
-                        console.log('Updating content for id:', id); // Debug log
-                        var items = $j('.submenu-item[data-child-id="' + id + '"]').closest('li').find('ul li').map(function() {
+                        var items = $j('.wide-submenu-item[data-child-id="' + id + '"]').closest('li').find('ul li').map(function() {
                             return {
                                 title: $j(this).find('a').text(),
                                 url: $j(this).find('a').attr('href')
                             };
                         }).get();
 
-                        console.log('Found items:', items); // Debug log
-
                         if (items.length === 0 && id) {
-                            items = $j('.menu-item[data-menu-id="' + id + '"]').find('.submenu-item:first').closest('li').find('ul li').map(function() {
+                            items = $j('.wide-menu-item[data-menu-id="' + id + '"]').find('.wide-submenu-item:first').closest('li').find('ul li').map(function() {
                                 return {
                                     title: $j(this).find('a').text(),
                                     url: $j(this).find('a').attr('href')
@@ -957,31 +1121,31 @@ add_action('wp_footer', function() {
 
                         items.forEach(function(item) {
                             $level2Content.append(
-                                $j('<div class="submenu-item">').append(
+                                $j('<div class="wide-submenu-item">').append(
                                     $j('<a>').attr('href', item.url).text(item.title)
                                 )
                             );
                         });
 
-                        currentLevel2Id = id; // Update the current level-2 ID
+                        currentLevel2Id = id;
                     }
 
-                    // Initialize with default content for each level-2 submenu
-                    $j('.submenu.level-2').each(function() {
-                        var defaultId = $j(this).data('default-id');
-                        if (defaultId) {
-                            console.log('Initializing with default content for id:', defaultId); // Debug log
-                            updateLevel2Content(defaultId, $j(this));
+                    // Initialize with default content for each level-2 submenu (desktop only)
+                    $j('.wide-submenu.level-2').each(function() {
+                        if (window.innerWidth > 991) {
+                            var defaultId = $j(this).data('default-id');
+                            if (defaultId) {
+                                updateLevel2Content(defaultId, $j(this));
+                            }
                         }
                     });
 
                     // Show level-1 and level-2 on hover for desktop
-                    $j('.menu-item.has-submenu').hover(
+                    $j('.wide-menu-item.wide-has-submenu').hover(
                         function() {
                             if (window.innerWidth > 991) {
-                                console.log('Hovering over menu item'); // Debug log
-                                var $submenuLevel1 = $j(this).find('.submenu.level-1');
-                                var $submenuLevel2 = $j(this).find('.submenu.level-2');
+                                var $submenuLevel1 = $j(this).find('.wide-submenu.level-1');
+                                var $submenuLevel2 = $j(this).find('.wide-submenu.level-2');
                                 $submenuLevel1.css({
                                     'visibility': 'visible',
                                     'opacity': '1'
@@ -990,7 +1154,7 @@ add_action('wp_footer', function() {
                                     'visibility': 'visible',
                                     'opacity': '1'
                                 });
-                                var firstChildId = $j(this).find('.submenu-item:first').data('child-id');
+                                var firstChildId = $j(this).find('.wide-submenu-item:first').data('child-id');
                                 if (firstChildId) {
                                     updateLevel2Content(firstChildId, $submenuLevel2);
                                 }
@@ -998,11 +1162,11 @@ add_action('wp_footer', function() {
                         },
                         function() {
                             if (window.innerWidth > 991) {
-                                $j(this).find('.submenu.level-1').css({
+                                $j(this).find('.wide-submenu.level-1').css({
                                     'visibility': 'hidden',
                                     'opacity': '0'
                                 });
-                                $j(this).find('.submenu.level-2').css({
+                                $j(this).find('.wide-submenu.level-2').css({
                                     'visibility': 'hidden',
                                     'opacity': '0'
                                 });
@@ -1010,66 +1174,21 @@ add_action('wp_footer', function() {
                         }
                     );
 
-                    // Toggle submenu on mobile for main menu items
-                    $j('.menu-item.has-submenu > a').on('click', function(e) {
-                        if (window.innerWidth <= 991) {
-                            e.preventDefault();
-                            var $submenu = $j(this).parent().find('.submenu.level-1');
-                            var $submenuLevel2 = $j(this).parent().find('.submenu.level-2');
-                            var isActive = $submenu.hasClass('active');
-                            
-                            // Close all other level-1 submenus
-                            $j('.submenu.level-1').not($submenu).removeClass('active');
-                            $j('.submenu.level-2').not($submenuLevel2).removeClass('active');
-
-                            $submenu.toggleClass('active');
-                            if (!isActive && $submenu.hasClass('active')) {
-                                var childId = $j(this).parent().find('.submenu-item:first').data('child-id');
-                                if (childId) {
-                                    updateLevel2Content(childId, $submenuLevel2);
-                                    $submenuLevel2.addClass('active');
-                                }
-                            } else {
-                                $submenuLevel2.removeClass('active');
-                            }
-                        }
-                    });
-
                     // Update level-2 content on hover for level-1 items (desktop)
-                    $j('.submenu-item').hover(
+                    $j('.wide-submenu-item').hover(
                         function() {
                             if (window.innerWidth > 991) {
                                 var childId = $j(this).data('child-id');
                                 if (childId) {
-                                    var $submenuLevel2 = $j(this).closest('.menu-item.has-submenu').find('.submenu.level-2');
+                                    var $submenuLevel2 = $j(this).closest('.wide-menu-item.wide-has-submenu').find('.wide-submenu.level-2');
                                     updateLevel2Content(childId, $submenuLevel2);
                                 }
                             }
                         },
                         function() {
-                            // Do not reset to default on hover out to maintain current state
+                            // Maintain current state
                         }
                     );
-
-                    // Toggle level-2 submenu on click for level-1 items (mobile)
-                    $j('.submenu-item a').on('click', function(e) {
-                        if (window.innerWidth <= 991) {
-                            e.preventDefault();
-                            var childId = $j(this).parent().data('child-id');
-                            var $submenuLevel2 = $j(this).closest('.menu-item.has-submenu').find('.submenu.level-2');
-                            var isActive = $submenuLevel2.hasClass('active');
-
-                            // Only update if clicking a different submenu item
-                            if (childId && currentLevel2Id !== childId) {
-                                updateLevel2Content(childId, $submenuLevel2);
-                                $submenuLevel2.addClass('active');
-                            } else if (isActive) {
-                                $submenuLevel2.removeClass('active');
-                            } else {
-                                $submenuLevel2.addClass('active');
-                            }
-                        }
-                    });
                 });
             })(jQuery);
         </script>
