@@ -467,7 +467,8 @@ function aspiredev_header_menu_submenu_width_callback() {
     <?php
 }
 
-// Create the header shortcode
+
+// Modified shortcode function to conditionally include level-2 submenu and rotation icon
 function aspiredev_header_shortcode($atts) {
     $options = get_option('aspiredev_header_menu_settings');
     $color_scheme = $options['color_scheme'] ?? 'default';
@@ -562,6 +563,7 @@ function aspiredev_header_shortcode($atts) {
     ?>
     <header class="aspiredev-header" style="padding: <?php echo esc_attr($padding); ?>px 0;">
         <style>
+            /* Existing styles remain unchanged */
             .aspiredev-header {
                 background: linear-gradient(90deg, <?php echo esc_attr($header_bg); ?>, <?php echo esc_attr($header_gradient); ?>);
                 box-shadow: 0 <?php echo esc_attr($shadow_intensity * 2); ?>px <?php echo esc_attr($shadow_intensity * 4); ?>px rgba(0, 0, 0, 0.2);
@@ -646,7 +648,7 @@ function aspiredev_header_shortcode($atts) {
 
             .wide-menu-item {
                 position: relative;
-                margin: 0 <?php echo esc_attr($item_spacing); ?>px;
+                margin: auto;
                 display: flex;
                 align-items: center;
             }
@@ -674,20 +676,23 @@ function aspiredev_header_shortcode($atts) {
                 transition: width <?php echo esc_attr($transition_speed); ?>s ease;
                 transform: translateX(-50%);
             }
-            .mobile-submenu.level-2.custom-mobile.active{
-                    display:block;
-                }
-            .mobile-submenu.level-2.custom-mobile> li{
+
+            .mobile-submenu.level-2.custom-mobile.active {
+                display: block;
+            }
+
+            .mobile-submenu.level-2.custom-mobile > li {
                 list-style: none;
-        margin: 0;
-        padding: 2px 0px;
-        /* padding-left:20px; */
-                }
-                .mobile-submenu.level-2.custom-mobile{
-                    display:none;
-                }
+                margin: 0;
+                padding: 2px 0px;
+            }
+
+            .mobile-submenu.level-2.custom-mobile {
+                display: none;
+            }
+
             .wide-menu-item a:hover::before {
-                width: 85%;
+                width: 45%;
             }
 
             .wide-menu-item a:hover {
@@ -702,7 +707,7 @@ function aspiredev_header_shortcode($atts) {
                 transition: transform <?php echo esc_attr($transition_speed); ?>s ease;
             }
 
-            .wide-submenu-item-level1 > a::after {
+            .wide-submenu-item-level1.wide-has-submenu > a::after {
                 content: "▼";
                 font-size: 10px;
                 margin-left: 8px;
@@ -825,10 +830,9 @@ function aspiredev_header_shortcode($atts) {
 
                 .wide-main-menu.active {
                     display: flex;
-                    flex-direction :row;
+                    flex-direction: row;
                     position: relative;
                 }
-              
 
                 .mobile-menu-item {
                     margin: 8px 0;
@@ -868,7 +872,6 @@ function aspiredev_header_shortcode($atts) {
 
                 .mobile-submenu.level-2 {
                     position: static;
-                    /* width: 100%; */
                     padding: 0 20px;
                     background: <?php echo esc_attr($submenu_bg); ?>;
                     box-shadow: none;
@@ -907,7 +910,6 @@ function aspiredev_header_shortcode($atts) {
                     content: "▶";
                     float: right;
                     font-size: 10px;
-                    /* margin-top: 4px; */
                 }
 
                 .mobile-has-submenu.active > a::after,
@@ -915,7 +917,7 @@ function aspiredev_header_shortcode($atts) {
                     transform: rotate(90deg);
                 }
 
-                .mobile-submenu-item-level1 > a::after {
+                .mobile-submenu-item-level1.wide-has-submenu > a::after {
                     float: right;
                     content: "▶";
                     font-size: 10px;
@@ -1003,7 +1005,7 @@ function aspiredev_header_shortcode($atts) {
                                         data-child-id="<?php echo esc_attr($child->ID); ?>">
                                         <a href="<?php echo esc_url($child->url); ?>"><?php echo esc_html($child->title); ?></a>
                                         <?php if (!empty($child->children)): ?>
-                                           <!-- mobile -->
+                                            <!-- mobile -->
                                             <ul class="mobile-submenu level-2 custom-mobile">
                                                 <?php foreach ($child->children as $grandchild): ?>
                                                     <li><a href="<?php echo esc_url($grandchild->url); ?>"><?php echo esc_html($grandchild->title); ?></a></li>
@@ -1016,18 +1018,29 @@ function aspiredev_header_shortcode($atts) {
                                         <?php $first_child = false; ?>
                                     <?php endif; ?>
                                 <?php endforeach; ?>
-                                <div class="wide-submenu mobile-submenu level-2" data-default-id="<?php echo esc_attr($first_child_id ?? ''); ?>">
-                                    <ul class="wide-level-2-items mobile-level-2-items">
-                                        <?php foreach ($item->children as $child): ?>
-                                            <?php if (!empty($child->children)): ?>
-                                                <?php foreach ($child->children as $grandchild): ?>
-                                                    <li><a href="<?php echo esc_url($grandchild->url); ?>"><?php echo esc_html($grandchild->title); ?></a></li>
-                                                <?php endforeach; ?>
-                                            <?php endif; ?>
-                                        <?php endforeach; ?>
-                                    </ul>
-                                    <div class="wide-submenu-content mobile-submenu-content"></div>
-                                </div>
+                                <?php 
+                                // Check if any level-2 items exist for this submenu
+                                $has_level_2 = false;
+                                foreach ($item->children as $child) {
+                                    if (!empty($child->children)) {
+                                        $has_level_2 = true;
+                                        break;
+                                    }
+                                }
+                                if ($has_level_2): ?>
+                                    <div class="wide-submenu mobile-submenu level-2" data-default-id="<?php echo esc_attr($first_child_id ?? ''); ?>">
+                                        <ul class="wide-level-2-items mobile-level-2-items">
+                                            <?php foreach ($item->children as $child): ?>
+                                                <?php if (!empty($child->children)): ?>
+                                                    <?php foreach ($child->children as $grandchild): ?>
+                                                        <li><a href="<?php echo esc_url($grandchild->url); ?>"><?php echo esc_html($grandchild->title); ?></a></li>
+                                                    <?php endforeach; ?>
+                                                <?php endif; ?>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                        <div class="wide-submenu-content mobile-submenu-content"></div>
+                                    </div>
+                                <?php endif; ?>
                             </ul>
                         <?php endif; ?>
                     </li>
