@@ -695,6 +695,8 @@ function aspiredev_header_shortcode($atts) {
                 width: 45%;
             }
 
+
+            
             .wide-menu-item a:hover {
                 color: #ffffff;
             }
