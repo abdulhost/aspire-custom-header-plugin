@@ -739,7 +739,7 @@ function aspiredev_header_shortcode($atts) {
                 opacity: 0;
                 transition: opacity <?php echo esc_attr($transition_speed); ?>s ease, visibility 0s linear <?php echo esc_attr($transition_speed); ?>s;
                 z-index: 1000;
-                position: absolute; /* Or fixed, depending on your needs */
+                position: absolute; 
                 left: 0;
                 right: 0;
                 margin-left: auto;
