@@ -467,6 +467,7 @@ function aspiredev_header_menu_submenu_width_callback() {
     <?php
 }
 
+// Create the header shortcode
 
 // Modified shortcode function to conditionally include level-2 submenu and rotation icon
 function aspiredev_header_shortcode($atts) {
@@ -692,11 +693,9 @@ function aspiredev_header_shortcode($atts) {
             }
 
             .wide-menu-item a:hover::before {
-                width: 45%;
+                width: 85%;
             }
 
-
-            
             .wide-menu-item a:hover {
                 color: #ffffff;
             }
@@ -735,11 +734,18 @@ function aspiredev_header_shortcode($atts) {
                 flex-direction: row;
                 gap: 8px;
                 padding: 12px 0;
-                min-width: <?php echo esc_attr($submenu_width); ?>px;
+                min-width: min-content;
                 visibility: hidden;
                 opacity: 0;
                 transition: opacity <?php echo esc_attr($transition_speed); ?>s ease, visibility 0s linear <?php echo esc_attr($transition_speed); ?>s;
                 z-index: 1000;
+                position: absolute; /* Or fixed, depending on your needs */
+                left: 0;
+                right: 0;
+                margin-left: auto;
+                margin-right: auto;
+                transform: translateX(-50%);
+
             }
 
             .wide-submenu.level-2 {
